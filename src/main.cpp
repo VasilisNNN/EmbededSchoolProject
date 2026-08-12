@@ -1,70 +1,25 @@
 #include <Arduino.h>
 
-#define LED_OUT_RED 15
-#define BUTTON_BOOT 0
-#define BUTTON_IN 16
-
-u8_t blinkSpeed = 0;
-bool legTurnedOn = false;
+#define LED_RED 15
+#define LED_BLUE 16
 
 void setup()
 {
-    Serial.begin(115200);
-    delay(1000);
+    pinMode(LED_RED, OUTPUT);
+    pinMode(LED_BLUE, OUTPUT);
 
-    pinMode(BUTTON_BOOT, INPUT_PULLDOWN);
-    pinMode(LED_OUT_RED, OUTPUT);
-    digitalWrite(LED_OUT_RED, LOW);
-
-    pinMode(BUTTON_IN, INPUT_PULLUP);
+    digitalWrite(LED_RED, LOW);
+    digitalWrite(LED_BLUE, LOW);
 }
 
 void loop()
 {
-    speedManager();
-    ledManager();
-}
+  
+    digitalWrite(LED_RED, HIGH);
+    digitalWrite(LED_BLUE, LOW);
+    delay(500);
 
-void speedManager()
-{
-    int input = digitalRead(BUTTON_IN);
-    int inputBoot = digitalRead(BUTTON_BOOT);
-
-    if (input == 1)
-    {
-        blinkSpeed = 1;
-        delay(5);
-    }
-    if (inputBoot == 1)
-    {
-        blinkSpeed = 2;
-        delay(5);
-    }
-}
-
-void ledManager()
-{
-    if (blinkSpeed == 0)
-    {
-
-        digitalWrite(LED_OUT_RED, LOW);
-        Serial.println("LED OFF");
-
-        return;
-    }
-
-    legTurnedOn = !legTurnedOn;
-
-    if (legTurnedOn)
-    {
-        Serial.println("LED ON");
-        digitalWrite(LED_OUT_RED, HIGH);
-    }
-    else
-    {
-        Serial.println("LED OFF");
-        digitalWrite(LED_OUT_RED, LOW);
-    }
-
-    delay(400 * blinkSpeed);
+    digitalWrite(LED_RED, LOW);
+    digitalWrite(LED_BLUE, HIGH);
+    delay(500);
 }
