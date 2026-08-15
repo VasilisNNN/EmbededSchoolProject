@@ -9,8 +9,8 @@ void setup()
 {
     Serial.begin(115200);
 
-    pinMode(PIN_IN, INPUT);
-    pinMode(PIN_OUT, PULLUP);
+    pinMode(PIN_IN, INPUT_PULLDOWN);
+    pinMode(PIN_OUT, OUTPUT);
 
 }
 
