@@ -1,35 +1,36 @@
 #include <Arduino.h>
 
+#define BUTTON_IN 16  // Кнопка підключена до GPIO 16
 
-#define PIN_IN 16
-#define ADCmax 4095
+volatile uint32_t button_counter = 0;  // volatile обов'язковий для змінних, які змінюються всередині ISR
 
-void setup()
-{
-    Serial.begin(115200);
+uint32_t last_count = 0; // Змінна для відслідковування змін у головному циклі
 
-    pinMode(PIN_IN, INPUT);
-
-
+// Швидка функція обробки переривань (ISR), яка розміщується в оперативній пам'яті (IRAM)
+void IRAM_ATTR button_isr() {
+  button_counter++;
 }
 
-void loop()
-{
-  int ADCValue = digitalRead(PIN_IN);
- int AnalogValue = analogRead(PIN_IN);
-  int AnalogVoltage = analogReadMilliVolts(PIN_IN);
+void setup() {
+  pinMode(BUTTON_IN, INPUT_PULLDOWN);
+  Serial.begin(115200);
 
- const float URef = 3100;
+  // Прив'язка переривання. FALLING означає спрацьовування при натисканні (перехід з 1 в 0)
+  attachInterrupt(digitalPinToInterrupt(BUTTON_IN), button_isr, FALLING);
+}
 
- float Voltage = ((float)AnalogValue/(float)4095) * URef;
+void loop() {
+    int read = digitalRead(BUTTON_IN);
 
- float error = abs(Voltage - AnalogVoltage) / AnalogVoltage * 100.0;
+  if (button_counter != last_count) {
+    last_count = button_counter;
+    Serial.print("Button Pressed! Count: ");
+    Serial.println(last_count);
+  }
+   
+  
+  
 
- Serial.printf("digitalRead: %d \n", ADCValue);
- Serial.printf("AnalogValue: %d mV\n", AnalogValue);
- Serial.printf("Voltage: %.02f V\n", Voltage);
- Serial.printf("AnalogValueM: %.02f mV\n", AnalogVoltage);
- Serial.printf("error: %.02f mV\n", error);
 
-    delay(100);
+  delay(100);
 }
