@@ -1,62 +1,23 @@
 #include <Arduino.h>
 
-#define PIN_IN 16
-#define PIN_OUT 17
+#define LED_PIN 13
 
-#define ADCres 4095
-bool turnedOn = false;
-float switchTimer = 0;
 
-void setup()
-{
+
+void setup() {
+    pinMode(LED_PIN, OUTPUT);
     Serial.begin(115200);
-
-    pinMode(PIN_IN, INPUT_PULLUP);
-    pinMode(PIN_OUT, OUTPUT);
-}
-void SwitchOnOff(float voltage)
-{
-  
-    if (switchTimer > millis())
-        return;
-
-    if (voltage < 1.5f)
-    {
-        turnedOn = true;
-
+    while (!Serial) {
     }
-    else if (voltage > 10.5f)
-    {
-        turnedOn = false;
-
-    }
-
-    switchTimer = millis() + 2;
+    Serial.println("UART ready!\r\n");
 }
 
-void loop()
-{
-    int ADCValue = digitalRead(PIN_IN);
-    int AnalogValue = analogRead(PIN_IN);
-    int AnalogVoltage = analogReadMilliVolts(PIN_IN);
-
-    const float URef = 3100;
-
-    float Voltage = ((float)AnalogValue / (float)ADCres) * URef;
-
-    SwitchOnOff(Voltage);
-
-    if (turnedOn)
-        digitalWrite(PIN_OUT, HIGH);
-    else
-        digitalWrite(PIN_OUT, LOW);
-
-    Serial.printf("digitalRead: %d \n", ADCValue);
-    Serial.printf("AnalogValue: %d mV\n", AnalogValue);
-    Serial.printf("Voltage: %.02f mV\n", Voltage);
-    Serial.printf("AnalogValueM: %.02f mV\n", AnalogVoltage);
-
-    delay(100);
+void loop() {
+    digitalWrite(LED_PIN, HIGH);
+    delay(500);
+    digitalWrite(LED_PIN, LOW);
+    delay(500);
+    Serial.println("LED blinked!");
 }
 
 
