@@ -20,12 +20,12 @@ void SwitchOnOff(float voltage)
     if (switchTimer > millis())
         return;
 
-    if (voltage < 1.5f)
+    if (voltage < 80.0f)
     {
         turnedOn = true;
 
     }
-    else if (voltage > 10.5f)
+    else if (voltage > 500.0f)
     {
         turnedOn = false;
 
