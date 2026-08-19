@@ -8,7 +8,7 @@ bool turnedOn = false;
 float switchTimer = 0;
 
 #define MinSwitchmV 80.0f
-#define MaxSwitchmV 500.0f
+#define MaxSwitchmV 120.0f
 #define TimderDelay 2.0f
 
 void setup()
