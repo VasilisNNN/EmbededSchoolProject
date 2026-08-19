@@ -7,6 +7,10 @@
 bool turnedOn = false;
 float switchTimer = 0;
 
+#define MinSwitchmV 80.0f
+#define MaxSwitchmV 500.0f
+#define TimderDelay 2.0f
+
 void setup()
 {
     Serial.begin(115200);
@@ -20,18 +24,18 @@ void SwitchOnOff(float voltage)
     if (switchTimer > millis())
         return;
 
-    if (voltage < 80.0f)
+    if (voltage < MinSwitchmV)
     {
         turnedOn = true;
 
     }
-    else if (voltage > 500.0f)
+    else if (voltage > MaxSwitchmV)
     {
         turnedOn = false;
 
     }
 
-    switchTimer = millis() + 2;
+    switchTimer = millis() + TimderDelay;
 }
 
 void loop()
