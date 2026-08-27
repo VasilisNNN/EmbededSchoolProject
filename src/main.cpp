@@ -1,7 +1,10 @@
 #include <Arduino.h>
 
-constexpr uint8_t RELAY_PIN = 17;
-constexpr uint8_t CONTACT_PIN = 16;
+
+constexpr uint8_t PIN_IN = 16;
+constexpr uint8_t PIN_OUT= 17;
+
+
 
 volatile uint32_t interruptTime = 0;
 
@@ -9,42 +12,68 @@ uint32_t startTime = 0;
 uint32_t measurement = 0;
 
 uint8_t pinInput = 0;
+uint32_t lasttimer = 0;
 
 void IRAM_ATTR onContactChange()
 {
+
+
     interruptTime = millis();
+    
+    uint32_t now = millis();
+    if (now - lasttimer > 20)
+    {
+      
+        lasttimer = now;
+    }
+
   
+    
 }
 
 void setup()
 {
     Serial.begin(115200);
 
-    pinMode(RELAY_PIN, OUTPUT);
-    pinMode(CONTACT_PIN, INPUT_PULLUP);
+    pinMode(PIN_OUT, OUTPUT);
+    pinMode(PIN_IN, INPUT_PULLDOWN);
 
-    attachInterrupt(
-        digitalPinToInterrupt(CONTACT_PIN),
+     attachInterrupt(
+        digitalPinToInterrupt(PIN_IN),
         onContactChange,
-        CHANGE
+        RISING
     );
 
-    digitalWrite(RELAY_PIN, LOW);
+    digitalWrite(PIN_OUT, LOW);
 
     Serial.println("Relay timing test");
 }
 
 void loop()
 {
+    static uint8_t lastpinstate;
 
-    digitalWrite(RELAY_PIN, HIGH);
+     if(lastpinstate==1)
+     digitalWrite(PIN_OUT, HIGH);
+     else 
+     digitalWrite(PIN_OUT, LOW);
+
 
     measurement = interruptTime - startTime;
 
-    if(interruptTime > 0)
-    {
-     Serial.printf("interruptTime: ",interruptTime + "\n");
-    }
-   
-}
+    uint32_t now = millis();
 
+      
+    if (now - lasttimer < 2000)
+        return;
+    
+        if(lastpinstate!=1)
+        lastpinstate = 1;
+        else lastpinstate = 0;
+
+        Serial.printf("interruptTime: %lu\n", interruptTime);
+        Serial.printf("read pin: %d\n", digitalRead(PIN_IN));
+   
+     
+    lasttimer = now;
+}
