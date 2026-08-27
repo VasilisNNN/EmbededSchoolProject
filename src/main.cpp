@@ -1,66 +1,50 @@
 #include <Arduino.h>
 
-#define PIN_IN 16
-#define PIN_OUT 17
+constexpr uint8_t RELAY_PIN = 17;
+constexpr uint8_t CONTACT_PIN = 16;
 
-#define ADCres 4095
-bool turnedOn = false;
-float switchTimer = 0;
+volatile uint32_t interruptTime = 0;
 
-#define MinSwitchmV 80.0f
-#define MaxSwitchmV 120.0f
-#define TimderDelay 2.0f
+uint32_t startTime = 0;
+uint32_t measurement = 0;
+
+uint8_t pinInput = 0;
+
+void IRAM_ATTR onContactChange()
+{
+    interruptTime = millis();
+  
+}
 
 void setup()
 {
     Serial.begin(115200);
 
-    pinMode(PIN_IN, INPUT_PULLUP);
-    pinMode(PIN_OUT, OUTPUT);
-}
-void SwitchOnOff(float voltage)
-{
-  
-    if (switchTimer > millis())
-        return;
+    pinMode(RELAY_PIN, OUTPUT);
+    pinMode(CONTACT_PIN, INPUT_PULLUP);
 
-    if (voltage < MinSwitchmV)
-    {
-        turnedOn = true;
+    attachInterrupt(
+        digitalPinToInterrupt(CONTACT_PIN),
+        onContactChange,
+        CHANGE
+    );
 
-    }
-    else if (voltage > MaxSwitchmV)
-    {
-        turnedOn = false;
+    digitalWrite(RELAY_PIN, LOW);
 
-    }
-
-    switchTimer = millis() + TimderDelay;
+    Serial.println("Relay timing test");
 }
 
 void loop()
 {
-    int ADCValue = digitalRead(PIN_IN);
-    int AnalogValue = analogRead(PIN_IN);
-    int AnalogVoltage = analogReadMilliVolts(PIN_IN);
 
-    const float URef = 3100;
+    digitalWrite(RELAY_PIN, HIGH);
 
-    float Voltage = ((float)AnalogValue / (float)ADCres) * URef;
+    measurement = interruptTime - startTime;
 
-    SwitchOnOff(Voltage);
-
-    if (turnedOn)
-        digitalWrite(PIN_OUT, HIGH);
-    else
-        digitalWrite(PIN_OUT, LOW);
-
-    Serial.printf("digitalRead: %d \n", ADCValue);
-    Serial.printf("AnalogValue: %d mV\n", AnalogValue);
-    Serial.printf("Voltage: %.02f mV\n", Voltage);
-    Serial.printf("AnalogValueM: %.02f mV\n", AnalogVoltage);
-
-    delay(100);
+    if(interruptTime > 0)
+    {
+     Serial.printf("interruptTime: ",interruptTime + "\n");
+    }
+   
 }
-
 
