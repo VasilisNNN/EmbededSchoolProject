@@ -2,8 +2,8 @@
 #include "buttonFSM.h"
 #include "ledControl.h"
 
-#define BUTTON_PIN 			15
-#define LED_PIN 			16
+#define BUTTON_PIN 			12
+#define LED_PIN 			13
 #define DEBOUNCE_DELAY 		50
 
 typedef struct{
@@ -52,6 +52,7 @@ void setup() {
 void loop() {
 	int retVal = 0;
 
+  if read(BUTTON_PIN, INPUT_PULLUP);
 	retVal = Button_FSM_Update(&buttonFsm);
 	if (retVal != 0) {
 		Serial.println("Failed to update button FSM");
