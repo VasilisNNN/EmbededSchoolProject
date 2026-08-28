@@ -1,79 +1,64 @@
 #include <Arduino.h>
+#include "buttonFSM.h"
+#include "ledControl.h"
 
+#define BUTTON_PIN 			15
+#define LED_PIN 			16
+#define DEBOUNCE_DELAY 		50
 
-constexpr uint8_t PIN_IN = 16;
-constexpr uint8_t PIN_OUT= 17;
+typedef struct{
+	int presseCount;
+	int releaseCount;
+} Counter_t;
 
+static Button_FSM_t buttonFsm;
+static ledControl_t led_1;
+static Counter_t counter = {0, 0};
 
-
-volatile uint32_t interruptTime = 0;
-
-uint32_t startTime = 0;
-uint32_t measurement = 0;
-
-uint8_t pinInput = 0;
-uint32_t lasttimer = 0;
-
-void IRAM_ATTR onContactChange()
-{
-
-
-    interruptTime = millis();
-    
-    uint32_t now = millis();
-    if (now - lasttimer > 20)
-    {
-      
-        lasttimer = now;
-    }
-
-  
-    
+void onButtonPress(void* arg) {
+	Counter_t* counter = (Counter_t*)arg;
+	counter->presseCount++;
+	Serial.print("Button pressed: ");
+	Serial.println(counter->presseCount);
+	ledControl_init(&led_1, LED_PIN, true, LED_MODE_BLINK, 200, 200);
 }
 
-void setup()
-{
-    Serial.begin(115200);
-
-    pinMode(PIN_OUT, OUTPUT);
-    pinMode(PIN_IN, INPUT_PULLDOWN);
-
-     attachInterrupt(
-        digitalPinToInterrupt(PIN_IN),
-        onContactChange,
-        RISING
-    );
-
-    digitalWrite(PIN_OUT, LOW);
-
-    Serial.println("Relay timing test");
+void onButtonRelease(void* arg) {
+	int retVal = 0;
+	Counter_t* counter = (Counter_t*)arg;
+	counter->releaseCount++;
+	Serial.print("Button released: ");
+	Serial.println(counter->releaseCount);
+	ledControl_init(&led_1, LED_PIN, true, LED_MODE_OFF, 0, 0);
 }
 
-void loop()
-{
-    static uint8_t lastpinstate;
+void setup() {
+	int retVal = 0;
 
-     if(lastpinstate==1)
-     digitalWrite(PIN_OUT, HIGH);
-     else 
-     digitalWrite(PIN_OUT, LOW);
+	Serial.begin(115200);
+	pinMode(BUTTON_PIN, INPUT_PULLUP);
 
+	retVal = ledControl_init(&led_1, LED_PIN, true, LED_MODE_OFF, 0, 0);
+	if (retVal != 0) {
+		Serial.println("Failed to initialize LED control");
+	}
 
-    measurement = interruptTime - startTime;
+	retVal = Button_FSM_Init(&buttonFsm, BUTTON_PIN, DEBOUNCE_DELAY, onButtonPress, onButtonRelease, &counter);
+	if (retVal != 0) {
+		Serial.println("Failed to initialize button FSM");
+	}
+}
 
-    uint32_t now = millis();
+void loop() {
+	int retVal = 0;
 
-      
-    if (now - lasttimer < 2000)
-        return;
-    
-        if(lastpinstate!=1)
-        lastpinstate = 1;
-        else lastpinstate = 0;
+	retVal = Button_FSM_Update(&buttonFsm);
+	if (retVal != 0) {
+		Serial.println("Failed to update button FSM");
+	}
 
-        Serial.printf("interruptTime: %lu\n", interruptTime);
-        Serial.printf("read pin: %d\n", digitalRead(PIN_IN));
-   
-     
-    lasttimer = now;
+	retVal = ledControl_update(&led_1);
+	if (retVal != 0) {
+		Serial.println("Failed to update LED control");
+	}
 }
