@@ -52,7 +52,9 @@ void setup() {
 void loop() {
 	int retVal = 0;
 
-  if read(BUTTON_PIN, INPUT_PULLUP);
+  if (digitalRead(BUTTON_PIN)>0)
+  printf("digitalRead(BUTTON_PIN) ", digitalRead(BUTTON_PIN));
+ 
 	retVal = Button_FSM_Update(&buttonFsm);
 	if (retVal != 0) {
 		Serial.println("Failed to update button FSM");
