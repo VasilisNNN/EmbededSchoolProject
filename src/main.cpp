@@ -1,62 +1,77 @@
 #include <Arduino.h>
-#include "buttonFSM.h"
-#include "ledControl.h"
+#include <atomic>
+#include <OneButton.h>
 
-#define BUTTON_PIN 			12
-#define LED_PIN 			13
-#define BLINK_TIME_MS 		200
-#define DEBOUNCE_DELAY 		50
+#define BTN_START_TIMER_IN 15
+#define TIMER_LED_OUT 16
 
-typedef struct{
-	int presseCount;
-	int releaseCount;
-} Counter_t;
+std::atomic<uint32_t> isrCounter(0);
+volatile bool timerFired = false;
 
-static Button_FSM_t buttonFsm;
-static hw_timer_t *ledTimer = NULL;
-static ledControl_t led_1;
-static Counter_t counter = {0, 0};
+hw_timer_t *timer = NULL;
+OneButton startButton(BTN_START_TIMER_IN, true, true);
+bool timerEnabled = false;
 
-void IRAM_ATTR onLedTimerInterrupt() {
-	ledControl_update(&led_1);
+// Функція переривання (ISR)
+void IRAM_ATTR onTimer() {
+	// Операції ++ та присвоєння для atomic є безпечними (атомарними)
+	isrCounter.fetch_add(1, std::memory_order_relaxed);
+	timerFired = true;
 }
 
-void onButtonPress(void*) {
-	counter.presseCount++;
-	Serial.print("Button pressed: ");
-	Serial.println(counter.presseCount);
-	ledControl_init(&led_1, LED_PIN, true, LED_MODE_BLINK, BLINK_TIME_MS, BLINK_TIME_MS);
-}
+void startTimer() {
+	if (!timer) {
+		return;
+	}
 
-void onButtonRelease(void*) {
-	counter.releaseCount++;
-	Serial.print("Button released: ");
-	Serial.println(counter.releaseCount);
-	ledControl_init(&led_1, LED_PIN, true, LED_MODE_OFF, 0, 0);
+	timerFired = false;
+	timerAlarmEnable(timer);
+	digitalWrite(TIMER_LED_OUT, HIGH);
+	timerEnabled = true;
+	Serial.println("Timer started...");
 }
 
 void setup() {
 	Serial.begin(115200);
+	enableLoopWDT();
 
-	if (ledControl_init(&led_1, LED_PIN, true, LED_MODE_OFF, 0, 0) != 0) {
-		Serial.println("Failed to initialize LED control");
-	}
+	pinMode(TIMER_LED_OUT, OUTPUT);
+	digitalWrite(TIMER_LED_OUT, LOW);
+	startButton.attachClick(startTimer);
 
-	ledTimer = timerBegin(0, 80, true);
-	if (ledTimer == NULL) {
-		Serial.println("Failed to initialize LED timer");
-	} else {
-		timerAttachInterrupt(ledTimer, onLedTimerInterrupt, true);
-		timerAlarmWrite(ledTimer, 1000, true);
-		timerAlarmEnable(ledTimer);
-	}
+	// Ініціалізація таймера (ESP32-S3)
+	// divider = 80: 80 МГц / 80 = 1 МГц (1 tick = 1 мкс)
+	timer = timerBegin(0, 80, true);
 
-	if (Button_FSM_Init(&buttonFsm, BUTTON_PIN, DEBOUNCE_DELAY,
-			onButtonPress, onButtonRelease, &counter) != 0) {
-		Serial.println("Failed to initialize button FSM");
-	}
-	Serial.println("Button interrupt initialized");
+	// Прив'язка функції переривання
+	timerAttachInterrupt(timer, &onTimer, true);
+
+	// Одноразове спрацювання через 1 000 000 мікросекунд = 1 секунду
+	timerAlarmWrite(timer, 1000000, false);
+	timerAlarmDisable(timer);
+
+	Serial.println("Press the button to start the timer...");
 }
 
 void loop() {
+	startButton.tick();
+
+	if (timerFired) {
+		timerFired = false;
+		timerEnabled = false;
+		digitalWrite(TIMER_LED_OUT, LOW);
+
+		// Safely read the counter value
+		uint32_t currentCount = isrCounter.load();
+
+		Serial.print("Trigger #: ");
+		Serial.println(currentCount);
+		//Serial.print(" | Time: ");
+		//Serial.print(millis());
+		//Serial.println(" ms");
+	}
+
+	feedLoopWDT();
+	delay(10);
 }
+
