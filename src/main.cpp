@@ -1,79 +1,64 @@
 #include <Arduino.h>
 
+#define PIN_IN 16
+#define PIN_OUT 17
 
-constexpr uint8_t PIN_IN = 16;
-constexpr uint8_t PIN_OUT= 17;
+#define ADCres 4095
+bool turnedOn = false;
+float switchTimer = 0;
 
-
-
-volatile uint32_t interruptTime = 0;
-
-uint32_t startTime = 0;
-uint32_t measurement = 0;
-
-uint8_t pinInput = 0;
-uint32_t lasttimer = 0;
-
-void IRAM_ATTR onContactChange()
-{
-
-
-    interruptTime = millis();
-    
-    uint32_t now = millis();
-    if (now - lasttimer > 20)
-    {
-      
-        lasttimer = now;
-    }
-
-  
-    
-}
+#define MinSwitchmV 80.0f
+#define MaxSwitchmV 120.0f
+#define TimderDelay 2.0f
 
 void setup()
 {
     Serial.begin(115200);
 
+    pinMode(PIN_IN, INPUT_PULLUP);
     pinMode(PIN_OUT, OUTPUT);
-    pinMode(PIN_IN, INPUT_PULLDOWN);
+}
+void SwitchOnOff(float voltage)
+{
+  
+    if (switchTimer > millis())
+        return;
 
-     attachInterrupt(
-        digitalPinToInterrupt(PIN_IN),
-        onContactChange,
-        RISING
-    );
+    if (voltage < MinSwitchmV)
+    {
+        turnedOn = true;
 
-    digitalWrite(PIN_OUT, LOW);
+    }
+    else if (voltage > MaxSwitchmV)
+    {
+        turnedOn = false;
 
-    Serial.println("Relay timing test");
+    }
+
+    switchTimer = millis() + TimderDelay;
 }
 
 void loop()
 {
-    static uint8_t lastpinstate;
+    int ADCValue = digitalRead(PIN_IN);
+    int AnalogValue = analogRead(PIN_IN);
+    int AnalogVoltage = analogReadMilliVolts(PIN_IN);
 
-     if(lastpinstate==1)
-     digitalWrite(PIN_OUT, HIGH);
-     else 
-     digitalWrite(PIN_OUT, LOW);
+    const float URef = 3100;
 
+    float Voltage = ((float)AnalogValue / (float)ADCres) * URef;
 
-    measurement = interruptTime - startTime;
+    SwitchOnOff(Voltage);
 
-    uint32_t now = millis();
+    if (turnedOn)
+        digitalWrite(PIN_OUT, HIGH);
+    else
+        digitalWrite(PIN_OUT, LOW);
 
-      
-    if (now - lasttimer < 2000)
-        return;
-    
-        if(lastpinstate!=1)
-        lastpinstate = 1;
-        else lastpinstate = 0;
+    Serial.printf("digitalRead: %d \n", ADCValue);
+    Serial.printf("AnalogValue: %d mV\n", AnalogValue);
+    Serial.printf("Voltage: %.02f mV\n", Voltage);
+    Serial.printf("AnalogValueM: %.02f mV\n", AnalogVoltage);
 
-        Serial.printf("interruptTime: %lu\n", interruptTime);
-        Serial.printf("read pin: %d\n", digitalRead(PIN_IN));
-   
-     
-    lasttimer = now;
+    delay(100);
 }
