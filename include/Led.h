@@ -10,7 +10,7 @@ enum class LedState
 class Led
 {
 public:
-    void Init();
+    void Init(u_int8_t);
     void Set(LedState state);
 
 };

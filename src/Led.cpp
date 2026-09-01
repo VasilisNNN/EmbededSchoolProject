@@ -2,12 +2,12 @@
 #include <Arduino.h>
 
 
-constexpr int PIN_OUT  = 2;
 
-void Init()
+u_int8_t pinID;
+void Init(u_int8_t pinId)
 {
-  
-    pinMode(PIN_OUT, OUTPUT);
+    pinID = pinId;
+    pinMode(pinId, OUTPUT);
    
 }
 
@@ -15,10 +15,10 @@ void Set(LedState state)
 {
     if (state == LedState::On)
     {
-        digitalWrite(PIN_OUT, HIGH);
+        digitalWrite(pinID, HIGH);
     }
     else
     {
-        digitalWrite(PIN_OUT, LOW);
+        digitalWrite(pinID, LOW);
     }
 }
