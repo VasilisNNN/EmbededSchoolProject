@@ -1,7 +1,13 @@
+<<<<<<< HEAD
 #include <Arduino.h>
 
 #define PIN_IN 16
 #define PIN_OUT 17
+=======
+#include "Arduino.h"
+#include "Led.h"
+#include "Config.h"
+>>>>>>> 522a0e0 (blink on timer)
 
 #define ADCres 4095
 bool turnedOn = false;
@@ -15,8 +21,14 @@ void setup()
 {
     Serial.begin(115200);
 
+<<<<<<< HEAD
     pinMode(PIN_IN, INPUT_PULLUP);
     pinMode(PIN_OUT, OUTPUT);
+=======
+    led.Init(Config::PIN_OUT);
+  
+
+>>>>>>> 522a0e0 (blink on timer)
 }
 void SwitchOnOff(float voltage)
 {
@@ -44,6 +56,7 @@ void loop()
     int AnalogValue = analogRead(PIN_IN);
     int AnalogVoltage = analogReadMilliVolts(PIN_IN);
 
+<<<<<<< HEAD
     const float URef = 3100;
 
     float Voltage = ((float)AnalogValue / (float)ADCres) * URef;
@@ -61,6 +74,20 @@ void loop()
     Serial.printf("AnalogValueM: %.02f mV\n", AnalogVoltage);
 
     delay(100);
+=======
+    if(timer > millis() && timer- Config::BLINK_TIME_MS < millis() )
+	{
+	    led.Set(LedState::Off);
+		return;
+	}
+
+
+    led.Set(LedState::On);
+         
+	if(timer < millis())
+    timer =  millis() + Config::BLINK_TIME_MS*2;
+    
+>>>>>>> 522a0e0 (blink on timer)
 }
 
 
