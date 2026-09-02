@@ -1,91 +1,67 @@
 #include <Arduino.h>
 #include <atomic>
-#include <OneButton.h>
+#include <Config.h>
 
-#define BTN_START_TIMER_IN 12
-#define TIMER_LED_OUT 13
+TimerHandle_t fanTimer = nullptr;
+bool fanRunning = false;
 
-std::atomic<uint32_t> isrCounter(0);
-volatile bool timerFired = false;
 
-hw_timer_t *timer = NULL;
+void fanTimerCallback(TimerHandle_t timer)
+{
+    if (fanRunning)
+    {
 
-bool led_state = false;
-bool alarm_state = false;
+        digitalWrite(Config::FAN_PIN, LOW);
+        fanRunning = false;
 
-// Функція переривання (ISR)
-void IRAM_ATTR onTimer() {
-	// Операції ++ та присвоєння для atomic є безпечними (атомарними)
-	isrCounter.fetch_add(1, std::memory_order_relaxed);
+        Serial.println("Fan OFF");
 
-	if(led_state){
-       digitalWrite(TIMER_LED_OUT, LOW);
-	   led_state = false;
-	}else 
-	{
-       digitalWrite(TIMER_LED_OUT, HIGH);
-	   led_state = true;
-	}
-	timerFired = true;
+       
+        xTimerChangePeriod(
+            fanTimer,
+            pdMS_TO_TICKS(Config::PERIOD_MS),
+            0
+        );
+        return;
+    }
+     
+        digitalWrite(Config::FAN_PIN, HIGH);
+        fanRunning = true;
+
+        Serial.println("Fan ON");
+
+       
+        xTimerChangePeriod(
+            fanTimer,
+            pdMS_TO_TICKS(Config::FAN_ON_TIME_MS),
+            0
+        );
+    
 }
 
-void startTimer() {
-	if (!timer) {
-		return;
-	}
+void setup()
+{
+    Serial.begin(115200);
 
-//	timerFired = false;
-	timerAlarmDisable(timer);
-//	digitalWrite(TIMER_LED_OUT, HIGH);
-	
-	Serial.println("Timer started...");
+    pinMode(Config::FAN_PIN, OUTPUT);
+
+    digitalWrite(Config::FAN_PIN, LOW);
+
+    fanTimer = xTimerCreate(
+        "FanTimer",
+        pdMS_TO_TICKS(Config::PERIOD_MS),
+        pdFALSE,
+        NULL,
+        fanTimerCallback
+    );
+
+    if (fanTimer != NULL)
+    {
+        xTimerStart(fanTimer, 0);
+    }
 }
 
-void setup() {
-	Serial.begin(115200);
-	enableLoopWDT();
-
-	pinMode(TIMER_LED_OUT, OUTPUT);
-	pinMode(BTN_START_TIMER_IN, INPUT_PULLUP);
-    attachInterrupt(digitalPinToInterrupt(BTN_START_TIMER_IN),startTimer,PULLUP);
-	digitalWrite(TIMER_LED_OUT, LOW);
-	
-	// Ініціалізація таймера (ESP32-S3)
-	// divider = 80: 80 МГц / 80 = 1 МГц (1 tick = 1 мкс)
-	timer = timerBegin(0, 80, true);
-
-	// Прив'язка функції переривання
-	timerAttachInterrupt(timer, &onTimer, true);
-
-	// Одноразове спрацювання через 1 000 000 мікросекунд = 1 секунду
-	timerAlarmWrite(timer, 1000000, true);
-	timerAlarmEnable(timer);
-
-    digitalWrite(TIMER_LED_OUT, HIGH);
-
-	Serial.println("Press the button to start the timer...");
+void loop()
+{
+  
 }
-
-void loop() {
-
-
-	if (timerFired) {
-	
-	
-	
-
-		// Safely read the counter value
-		uint32_t currentCount = isrCounter.load();
-
-		Serial.print("Trigger #: ");
-		Serial.println(currentCount);
-		//Serial.print(" | Time: ");
-		//Serial.print(millis());
-		//Serial.println(" ms");
-	    timerFired = false;
-	}
-
-	feedLoopWDT();
-
-}
-
