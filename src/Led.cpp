@@ -3,15 +3,15 @@
 
 
 
-u_int8_t pinID;
-void Init(u_int8_t pinId)
+
+void Led::Init(u_int8_t pinId)
 {
     pinID = pinId;
     pinMode(pinId, OUTPUT);
    
 }
 
-void Set(LedState state)
+void Led::Set(LedState state)
 {
     if (state == LedState::On)
     {

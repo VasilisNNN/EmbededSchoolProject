@@ -8,10 +8,8 @@ void setup()
 {
     Serial.begin(115200);
 
-
     led.Init(Config::PIN_OUT);
   
-
 }
 
 
