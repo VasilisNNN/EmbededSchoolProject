@@ -1,3 +1,5 @@
 #include <stdint.h>
-void setup();
-void loop();
+#include "Led.h"
+#include "Arduino.h"
+
+void blink(Led& currectLed, float delay);

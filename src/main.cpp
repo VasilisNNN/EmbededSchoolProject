@@ -1,5 +1,5 @@
 #include "Arduino.h"
-#include "Led.h"
+#include "main.h"
 #include "Config.h"
 
 Led led_0;
@@ -22,11 +22,11 @@ void loop()
 
   blink(led_0, Config::BLINK_TIME_MS_0);
   blink(led_1, Config::BLINK_TIME_MS_1);
-  blink(led_1, Config::BLINK_TIME_MS_2);
+  blink(led_2, Config::BLINK_TIME_MS_2);
 
 }
 
-void blink(Led currectLed, float delay)
+void blink(Led& currectLed, float delay)
 {
     if(currectLed.timer > millis() && currectLed.timer - delay < millis() )
 	{
