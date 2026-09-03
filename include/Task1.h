@@ -5,10 +5,7 @@ class Task1
 public:
     void Init();
     void Update();
-    static void IRAM_ATTR onInterrupt();
-    void ChangeCount(uint32_t add);
-    uint32_t GetCount();
+    
+    static void IRAM_ATTR onInterrupt_t1();
 
-private:
-      static uint32_t count;
 };
