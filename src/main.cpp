@@ -5,63 +5,56 @@
 TimerHandle_t fanTimer = nullptr;
 bool fanRunning = false;
 
-
 void fanTimerCallback(TimerHandle_t timer)
 {
-    if (fanRunning)
-    {
+	if (fanRunning)
+	{
 
-        digitalWrite(Config::FAN_PIN, LOW);
-        fanRunning = false;
+		digitalWrite(Config::FAN_PIN, LOW);
 
-        Serial.println("Fan OFF");
+		Serial.println("Fan OFF");
 
-       
-        xTimerChangePeriod(
-            fanTimer,
-            pdMS_TO_TICKS(Config::PERIOD_MS),
-            0
-        );
-        return;
-    }
-     
-        digitalWrite(Config::FAN_PIN, HIGH);
-        fanRunning = true;
+		xTimerChangePeriod(
+			fanTimer,
+			pdMS_TO_TICKS(Config::PERIOD_MS),
+			0);
 
-        Serial.println("Fan ON");
+		fanRunning = false;
+		return;
+	}
 
-       
-        xTimerChangePeriod(
-            fanTimer,
-            pdMS_TO_TICKS(Config::FAN_ON_TIME_MS),
-            0
-        );
-    
+	digitalWrite(Config::FAN_PIN, HIGH);
+
+	Serial.println("Fan ON");
+
+	xTimerChangePeriod(
+		fanTimer,
+		pdMS_TO_TICKS(Config::FAN_ON_TIME_MS),
+		0);
+	fanRunning = true;
 }
 
 void setup()
 {
-    Serial.begin(115200);
+	Serial.begin(115200);
 
-    pinMode(Config::FAN_PIN, OUTPUT);
+	pinMode(Config::FAN_PIN, OUTPUT);
 
-    digitalWrite(Config::FAN_PIN, LOW);
+	digitalWrite(Config::FAN_PIN, LOW);
 
-    fanTimer = xTimerCreate(
-        "FanTimer",
-        pdMS_TO_TICKS(Config::PERIOD_MS),
-        pdFALSE,
-        NULL,
-        fanTimerCallback
-    );
+	fanTimer = xTimerCreate(
+		"FanTimer",
+		pdMS_TO_TICKS(Config::PERIOD_MS),
+		pdFALSE,
+		NULL,
+		fanTimerCallback);
 
-    if (fanTimer != NULL)
-    {
-        xTimerStart(fanTimer, 0);
-    }
+	if (fanTimer != NULL)
+	{
+		xTimerStart(fanTimer, 0);
+	}
 }
 
 void loop()
 {
-  
 }
