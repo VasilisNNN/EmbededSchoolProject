@@ -1,35 +1,65 @@
 #include <Arduino.h>
-#include <Adafruit_NeoPixel.h>
+#include <atomic>
+#include <OneButton.h>
+#include <IWatchdog.h>
 
-#define LED_PIN     48  // YD-ESP32-S3 onboard WS2812 (IO48)
-#define NUMPIXELS   1   // One RGB LED only
+#define BTN_START_TIMER_IN PA0
+#define TIMER_LED_OUT PC13
+#define WATCHDOG_TIMEOUT_US 10000000
 
-Adafruit_NeoPixel pixels(NUMPIXELS, LED_PIN, NEO_GRB + NEO_KHZ800);
+std::atomic<uint32_t> isrCounter(0);
+volatile bool timerFired = false;
 
-void setup() {
-    Serial.begin(115200);
-    pixels.begin();
-    pixels.setBrightness(100); // Brightness (0~255)
-    Serial.println("Rainbow demo start with brightness 100");
+HardwareTimer *timer = NULL;
+OneButton startButton(BTN_START_TIMER_IN, true, true);
+uint32_t timeDuration = 0;
+
+// Функція переривання (ISR)
+void onTimer() {
+	// Операції ++ та присвоєння для atomic є безпечними (атомарними)
+	isrCounter.fetch_add(1, std::memory_order_relaxed);
+	timerFired = true;
+	timer->pause();
 }
 
-uint32_t Wheel(byte pos) {
-    pos = 255 - pos;
-    if(pos < 85) {
-        return pixels.Color(255 - pos * 3, 0, pos * 3);
-    } else if(pos < 170) {
-        pos -= 85;
-        return pixels.Color(0, pos * 3, 255 - pos * 3);
-    } else {
-        pos -= 170;
-        return pixels.Color(pos * 3, 255 - pos * 3, 0);
-    }
+void startTimer() {
+	digitalWrite(TIMER_LED_OUT, HIGH);
+	// Старт одноразового таймера на 1 секунду.
+	timer->setCount(0);
+	timer->resume();
+	// Запис поточного часу
+	timeDuration = millis();
+}
+
+void setup() {
+	Serial.begin(115200);
+	IWatchdog.begin(WATCHDOG_TIMEOUT_US);
+
+	pinMode(TIMER_LED_OUT, OUTPUT);
+	digitalWrite(TIMER_LED_OUT, LOW);
+
+	startButton.attachPress(startTimer);
+
+	// Ініціалізація апаратного таймера STM32: 1 MHz, переривання через 1 с.
+	timer = new HardwareTimer(TIM2);
+	timer->setOverflow(1000000, MICROSEC_FORMAT);
+	timer->attachInterrupt(onTimer);
+	timer->pause();
+
+	Serial.println("Press the button to start the timer...");
 }
 
 void loop() {
-    for(int i = 0; i < 256; i++) {
-        pixels.setPixelColor(0, Wheel(i));
-        pixels.show();
-        delay(20);
-    }
+	startButton.tick();
+
+	if (timerFired) {
+		timerFired = false;
+		digitalWrite(TIMER_LED_OUT, LOW);
+		const uint32_t elapsedTime = millis() - timeDuration;
+		Serial.printf("Timer finished %u times. Elapsed time: %lu ms\n",
+			isrCounter.load(std::memory_order_relaxed), elapsedTime);
+
+        IWatchdog.reload();
+	}
 }
+

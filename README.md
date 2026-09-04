@@ -1,25 +1,45 @@
-**ESP32 WS2812 Rainbow Demo**
 
-[WS2812 Datasheet](https://github.com/littlebirdelectronics/LB-00130/blob/master/datasheets/WS2812.pdf)
+# Таймер YD-ESP32-S3 з кнопкою та світлодіодом
 
-- **Overview:** Simple demo that runs a rainbow cycle on a single WS2812 (NeoPixel) LED connected to an ESP32 board.
+Проєкт для YD-ESP32-S3: натискання кнопки запускає одноразовий апаратний таймер на 1 секунду. На час відліку вмикається зовнішній світлодіод.
 
-- **Source:** src/main.cpp
+## Підключення
 
-**Hardware**
-- **Board:** YD-ESP32-S3 (ESP32-S3 N16R8)
-- **LED:** WS2812 / NeoPixel (single RGB LED)
-- **Data pin:** Default set to `LED_PIN = 48` in `src/main.cpp`.
+- **Кнопка:** між `GPIO15` і `GND`. У коді використовується внутрішня підтяжка до живлення (`INPUT_PULLUP`), тому натиснута кнопка має рівень `LOW`.
+- **Зовнішній світлодіод:** анод через струмообмежувальний резистор до `GPIO16`, катод до `GND`.
 
-**Features**
-- Smooth rainbow animation using the Adafruit_NeoPixel library.
-- Configurable brightness and number of pixels via `src/main.cpp`.
+## Робота програми
 
-**Build & Flash (PlatformIO)**
+1. `OneButton` виявляє натискання кнопки на `GPIO15`.
+2. `startTimer()` вмикає LED на `GPIO16`, скидає лічильник апаратного таймера та активує будильник на `1 000 000` мкс.
+3. Таймер працює з частотою 1 МГц: дільник 80 перетворює частоту 80 МГц на один відлік за мікросекунду. Отже, $1 000 000$ відліків дорівнює 1 секунді.
+4. Після завершення інтервалу ISR `onTimer()` збільшує атомарний лічильник `isrCounter` і встановлює прапорець `timerFired`.
+5. У `loop()` прапорець обробляється поза ISR: LED вимикається, а в Serial Monitor виводяться кількість завершень та виміряний час.
 
-```bash
+Повторне натискання під час світіння LED скидає лічильник і починає новий односекундний інтервал.
+
+## Task Watchdog Timer
+
+Використано ESP-IDF Task WDT з таймаутом `WDT_TIMEOUT_S` (10 секунд). Поточна задача Arduino `loop()` додається до WDT через `esp_task_wdt_add(NULL)`. У поточній програмі `esp_task_wdt_reset()` викликається після завершення таймера.
+
+Параметр `false` у `esp_task_wdt_init(WDT_TIMEOUT_S, false)` вимикає panic при таймауті. Для перезавантаження плати при таймауті використайте `true` і скидайте WDT у кожній штатній ітерації `loop()`.
+
+## Залежності та запуск
+
+- Плата: YD-ESP32-S3
+- Framework: Arduino
+- Залежність PlatformIO: `OneButton`
+- Швидкість Serial Monitor: 115200 бод
+
+Зібрати проєкт:
+
+```sh
 pio run
-pio run -t upload
 ```
 
+Завантажити прошивку та відкрити монітор порту:
+
+```sh
+pio run -t upload -t monitor
+```
 
