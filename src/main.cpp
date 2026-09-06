@@ -1,60 +1,84 @@
 #include <Arduino.h>
 #include <atomic>
 #include <Config.h>
+#include <Led.h>
 
-TimerHandle_t fanTimer = nullptr;
-bool fanRunning = false;
+Led GreenLed;
+Led YellowLed;
+Led RedLed;
 
-void fanTimerCallback(TimerHandle_t timer)
+enum TrafficLightState
 {
-	if (fanRunning)
-	{
+	CanPass,
+	FinishPassing,
+	CanNotPass,
+	FullStop,
+	GetReady,
+};
 
-		digitalWrite(Config::FAN_PIN, LOW);
-
-		Serial.println("Fan OFF");
-
-		xTimerChangePeriod(
-			fanTimer,
-			pdMS_TO_TICKS(Config::PERIOD_MS),
-			0);
-
-		fanRunning = false;
-		return;
-	}
-
-	digitalWrite(Config::FAN_PIN, HIGH);
-
-	Serial.println("Fan ON");
-
-	xTimerChangePeriod(
-		fanTimer,
-		pdMS_TO_TICKS(Config::FAN_ON_TIME_MS),
-		0);
-	fanRunning = true;
-}
+TrafficLightState trafficState;
 
 void setup()
 {
 	Serial.begin(115200);
 
-	pinMode(Config::FAN_PIN, OUTPUT);
-
-	digitalWrite(Config::FAN_PIN, LOW);
-
-	fanTimer = xTimerCreate(
-		"FanTimer",
-		pdMS_TO_TICKS(Config::PERIOD_MS),
-		pdFALSE,
-		NULL,
-		fanTimerCallback);
-
-	if (fanTimer != NULL)
-	{
-		xTimerStart(fanTimer, 0);
-	}
+	GreenLed.Init(Config::PIN_GREEN);
+	YellowLed.Init(Config::PIN_YELLOW);
+	RedLed.Init(Config::PIN_RED);
 }
 
 void loop()
 {
+    PhaseChange();
+    PhaseManager();
+}
+
+
+void PhaseChange()
+{
+
+}
+
+
+void PhaseManager()
+{
+	switch (trafficState)
+	{
+	case CanPass:
+	{
+        GreenLed.LedOn();
+		YellowLed.LedOff();
+		RedLed.LedOff();
+		break;
+	}
+	case FinishPassing:
+	{
+         GreenLed.Blink();
+		break;
+	}
+	case CanNotPass:
+	{
+        GreenLed.LedOff();
+		YellowLed.LedOn();
+		
+		break;
+	}
+	case FullStop:
+	{
+        GreenLed.LedOff();
+		YellowLed.LedOff();
+		RedLed.LedOn();
+		break;
+	}
+	case GetReady:
+	{ 
+		GreenLed.LedOff();
+		YellowLed.LedOn();
+		RedLed.LedOn();
+
+		break;
+	}
+	default:
+		break;
+	}
 }
