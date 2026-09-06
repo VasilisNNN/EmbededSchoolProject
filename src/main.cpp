@@ -1,15 +1,6 @@
 #include <Arduino.h>
 #include <Config.h>
-#include <Task1.h>
-#include <Task2.h>
-#include <Task3.h>
-#include <Task4.h>
 #include "main.h"
-
-/*Task1 task1;
-Task2 task2;
-Task3 task3;
-Task4 task4;*/
 
 uint32_t count_main_t1 = 0;
 uint32_t count_main_t2 = 0;
@@ -48,10 +39,6 @@ void setup()
 		onInterrupt_main_t1,
 		FALLING);
 
-	// task1.Init_t1();
-	// task2.Init();
-	// task3.Init();
-	// task4.Init();
 }
 
 void loop()
@@ -66,15 +53,12 @@ void loop()
 		return;
 	}
 
-	//task1();
-	//task2();
-	//task3();
+	task1();
+	task2();
+	task3();
 	task4();
 
-	// task1.Update_t1();
-	// task2.Update();
-	// task3.Update();
-	// task4.Update();
+
 }
 
 void task1()
