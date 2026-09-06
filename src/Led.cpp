@@ -2,26 +2,26 @@
 #include <Arduino.h>
 #include <Config.h>
 
-uint32_t LedID;
 
-void Init(uint8_t id)
+
+void Led::Init(uint8_t id)
 {
     LedID = id;
     pinMode(id, OUTPUT);
-    digitalWrite(id, LOW);
+    digitalWrite(LedID, LOW);
 }
-void LedOn()
+void Led::LedOn()
 {
 
     digitalWrite(LedID, HIGH);
 }
 
-void LedOff()
+void Led::LedOff()
 {
     digitalWrite(LedID, LOW);
 }
 
-void Blink()
+void Led::Blink()
 {
     static uint32_t timer = 0;
     static bool state = false;
