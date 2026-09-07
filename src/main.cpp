@@ -1,58 +1,40 @@
 #include <Arduino.h>
-#include <atomic>
 #include <Config.h>
 
-TimerHandle_t fanTimer = nullptr;
-bool fanRunning = false;
+hw_timer_t *fanTimer = NULL;
 
-void fanTimerCallback(TimerHandle_t timer)
+volatile bool fanRunning = false;
+
+void IRAM_ATTR onTimer()
 {
+	fanRunning = !fanRunning;
+
 	if (fanRunning)
 	{
-
+		digitalWrite(Config::FAN_PIN, HIGH);
+		timerAlarmWrite(fanTimer, Config::FAN_ON_TIME_MS, false);
+	}
+	else
+	{
 		digitalWrite(Config::FAN_PIN, LOW);
-
-		Serial.println("Fan OFF");
-
-		xTimerChangePeriod(
-			fanTimer,
-			pdMS_TO_TICKS(Config::PERIOD_MS),
-			0);
-
-		fanRunning = false;
-		return;
+		timerAlarmWrite(fanTimer, Config::PERIOD_MS - Config::FAN_ON_TIME_MS, false);
 	}
 
-	digitalWrite(Config::FAN_PIN, HIGH);
-
-	Serial.println("Fan ON");
-
-	xTimerChangePeriod(
-		fanTimer,
-		pdMS_TO_TICKS(Config::FAN_ON_TIME_MS),
-		0);
-	fanRunning = true;
+	timerAlarmEnable(fanTimer);
 }
 
 void setup()
 {
-	Serial.begin(115200);
-
 	pinMode(Config::FAN_PIN, OUTPUT);
-
 	digitalWrite(Config::FAN_PIN, LOW);
 
-	fanTimer = xTimerCreate(
-		"FanTimer",
-		pdMS_TO_TICKS(Config::PERIOD_MS),
-		pdFALSE,
-		NULL,
-		fanTimerCallback);
+	fanTimer = timerBegin(0, Config::TIMER_PRESCALER, true);
 
-	if (fanTimer != NULL)
-	{
-		xTimerStart(fanTimer, 0);
-	}
+	timerAttachInterrupt(fanTimer, &onTimer, true);
+
+	timerAlarmWrite(fanTimer, Config::PERIOD_MS - Config::FAN_ON_TIME_MS, false);
+
+	timerAlarmEnable(fanTimer);
 }
 
 void loop()
