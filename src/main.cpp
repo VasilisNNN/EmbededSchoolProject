@@ -9,24 +9,25 @@ void setup()
     Serial.begin(115200);
 
     led.Init(Config::PIN_OUT);
-  
+    timer = millis();
 }
 
 
 void loop()
 {
- 
-    if(timer > millis() && timer- Config::BLINK_TIME_MS < millis() )
-	{
-	    led.Set(LedState::Off);
-		return;
-	}
+    const uint32_t now = millis();
+    if (timer > now) {
+        if (timer - Config::BLINK_TIME_MS < now) {
+            led.Set(LedState::Off);
+        } else {
+            led.Set(LedState::On);
+        }
+     } else {
+         timer =  now + Config::BLINK_TIME_MS * 2;
+     }
 
 
-    led.Set(LedState::On);
-         
-	if(timer < millis())
-    timer =  millis() + Config::BLINK_TIME_MS*2;
+  
     
 }
 
