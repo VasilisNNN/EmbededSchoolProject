@@ -8,17 +8,11 @@ Led GreenLed;
 Led YellowLed;
 Led RedLed;
 
-enum TrafficLightState
-{
-	CanPass,
-	FinishPassing,
-	CanNotPass,
-	FullStop,
-	GetReady,
-};
+
 
 TrafficLightState trafficState;
 uint32_t timer;
+
 
 void setup()
 {
@@ -28,47 +22,27 @@ void setup()
 	YellowLed.Init(Config::PIN_YELLOW);
 	RedLed.Init(Config::PIN_RED);
 
-	timer = millis();
+	
+    SwitchPhase(TrafficLightState::CanPass, Config::CANPASS_DURATION);
 }
 
 void loop()
 {
-	PhaseChange();
+	
 	PhaseManager();
 }
 
-void PhaseChange()
+
+ 
+void SwitchPhase(TrafficLightState state, uint32_t _timercorrection)
 {
-	uint32_t currentTime = millis();
-	
 
-	if (timer + Config::CANPASS_DURATION > currentTime)
-	{
-		trafficState = TrafficLightState::CanPass;
-	}
-	else if (timer + Config::FINISHPASSING_DURATION  > currentTime)
-	{
 
-		trafficState = TrafficLightState::FinishPassing;
-	}
-	else if (timer + Config::CANNOTPASS_DURATION > currentTime)
-	{
-
-		trafficState = TrafficLightState::CanNotPass;
-	}
-	else if (timer + Config::FULLSTOP_DURATION > currentTime)
-	{
-
-		trafficState = TrafficLightState::FullStop;
-	}
-		else if (timer + Config::GETREADY_DURATION > currentTime)
-	{
-
-		trafficState = TrafficLightState::GetReady;
-	}
-	else if (timer + 17000 < currentTime)timer = millis();
-
+        timer = millis() + _timercorrection;
+		trafficState = state;
+		
 }
+
 
 void PhaseManager()
 {
@@ -79,17 +53,30 @@ void PhaseManager()
 		GreenLed.LedOn();
 		YellowLed.LedOff();
 		RedLed.LedOff();
+
+		if(timer < millis())
+		{
+           SwitchPhase(TrafficLightState::FinishPassing, Config::FINISHPASSING_DURATION);
+
+		}
 		break;
 	}
 	case FinishPassing:
 	{
 		GreenLed.Blink();
+		if(timer < millis())
+		 SwitchPhase(TrafficLightState::CanNotPass, Config::CANPASS_DURATION);
+
+		
 		break;
 	}
 	case CanNotPass:
 	{
 		GreenLed.LedOff();
 		YellowLed.LedOn();
+        
+		if(timer < millis())
+		 SwitchPhase(TrafficLightState::FullStop, Config::FULLSTOP_DURATION);
 
 		break;
 	}
@@ -98,6 +85,10 @@ void PhaseManager()
 		GreenLed.LedOff();
 		YellowLed.LedOff();
 		RedLed.LedOn();
+
+		if(timer < millis())
+		 SwitchPhase(TrafficLightState::GetReady, Config::GETREADY_DURATION);
+
 		break;
 	}
 	case GetReady:
@@ -105,6 +96,9 @@ void PhaseManager()
 		GreenLed.LedOff();
 		YellowLed.LedOn();
 		RedLed.LedOn();
+
+		if(timer < millis())
+		 SwitchPhase(TrafficLightState::CanPass, Config::CANPASS_DURATION);
 
 		break;
 	}
