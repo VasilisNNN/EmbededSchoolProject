@@ -3,17 +3,19 @@
 #include "freertos/task.h"
 #include "driver/gpio.h"
 #include "driver/gptimer.h"
+#include "Led.h"
+#include "Button.h"
 
-#define LED_OUT		GPIO_NUM_16
 #define BUTTON_IN	GPIO_NUM_15
-
+Led led;
+Button button;
 
 static bool IRAM_ATTR timer_on_alarm_cb(gptimer_handle_t timer,
                                          const gptimer_alarm_event_data_t *edata,
                                          void *user_data) {
     static bool led_state ;
     led_state = !led_state;
-    gpio_set_level(LED_OUT, led_state);
+    gpio_set_level(led.LED_OUT, led_state);
 
     return true;
 }
@@ -24,20 +26,14 @@ extern "C" void app_main() {
 
     // Налаштування структури GPIO для LED
     gpio_config_t gpio_led_conf = {};
-    gpio_led_conf.pin_bit_mask = 1ULL << LED_OUT;
-    gpio_led_conf.mode = GPIO_MODE_OUTPUT;
-    gpio_led_conf.pull_up_en = GPIO_PULLUP_DISABLE;
-    gpio_led_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
-    gpio_led_conf.intr_type = GPIO_INTR_DISABLE;
+    led.Init(&gpio_led_conf);
+   
 
     // Налаштування структури GPIO для BUTTON
     gpio_config_t gpio_button_conf = {};
-    gpio_button_conf.pin_bit_mask = 1ULL << BUTTON_IN;
-    gpio_button_conf.mode = GPIO_MODE_INPUT;
-    gpio_button_conf.pull_up_en = GPIO_PULLUP_ENABLE;
-    gpio_button_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
-    gpio_button_conf.intr_type = GPIO_INTR_DISABLE;
+    button.Init(&gpio_button_conf);
 
+    
     // Об'єкт таймера
     gptimer_handle_t timer;
     // Конфігурація таймера
@@ -83,12 +79,12 @@ extern "C" void app_main() {
     gpio_config(&gpio_button_conf);
 
     // Встановлення початкового стану
-    gpio_set_level(LED_OUT, 0);
+    gpio_set_level(led.LED_OUT, 0);
 
     while (1) {
         bool btn_state = gpio_get_level(BUTTON_IN);
 
-        gpio_set_level(LED_OUT, !btn_state);
+        gpio_set_level(led.LED_OUT, !btn_state);
 
         vTaskDelay(100 / portTICK_PERIOD_MS);
     }
