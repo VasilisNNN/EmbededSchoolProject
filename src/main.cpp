@@ -8,7 +8,7 @@
 #include "ADC.h"
 #include <iterator>
 
-#define BUTTON_IN GPIO_NUM_15
+const int SMA_threshold = 70;
 
 Led led;
 Button button;
@@ -96,7 +96,7 @@ extern "C" void app_main()
         printf("ADC SMA value = %d\n", adc.SMA());
 
      
-        if (adc.SMA() > 70)
+        if (adc.SMA() > SMA_threshold)
             gpio_set_level(led.LED_OUT, true);
         else
             gpio_set_level(led.LED_OUT, false);
