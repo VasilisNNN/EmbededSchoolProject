@@ -1,25 +1,31 @@
-**ESP32 WS2812 Rainbow Demo**
+# Beetroot EMB 4
 
-[WS2812 Datasheet](https://github.com/littlebirdelectronics/LB-00130/blob/master/datasheets/WS2812.pdf)
+Базовий STM32Cube + PlatformIO шаблон для BlackPill STM32F411CE.
 
-- **Overview:** Simple demo that runs a rainbow cycle on a single WS2812 (NeoPixel) LED connected to an ESP32 board.
+## Поточний стан
 
-- **Source:** src/main.cpp
+- MCU: STM32F411CEUx
+- Framework: `stm32cube`
+- Build: PlatformIO
+- Upload: ST-Link
+- USB: OTG FS, CDC Virtual COM Port
+- LED: PC13, active-high
 
-**Hardware**
-- **Board:** YD-ESP32-S3 (ESP32-S3 N16R8)
-- **LED:** WS2812 / NeoPixel (single RGB LED)
-- **Data pin:** Default set to `LED_PIN = 48` in `src/main.cpp`.
+## Структура
 
-**Features**
-- Smooth rainbow animation using the Adafruit_NeoPixel library.
-- Configurable brightness and number of pixels via `src/main.cpp`.
+- `Src/app` - прикладна логіка
+- `Src/printf` - функція `printf()` на USB
+- `Inc/printf` - заголовки для виводу
 
-**Build & Flash (PlatformIO)**
+## Поведінка прошивки
 
-```bash
-pio run
-pio run -t upload
-```
+- `main.c` виконує HAL/Clock/GPIO/USB ініціалізацію
+- `main_cpp()` викликається з C-коду
+- LED на PC13 перемикається кожні 0,5 секунди
+- `printf()` виводиться у USB
 
+## Примітки
 
+- Основний C++ файл: `Src/app/main_app.cpp`
+- `printf()` ретаргетиться у `Src/printf/usb_printf.c`
+- USB Type-C у поточній конфігурації використовується для логування, не для прошивки
