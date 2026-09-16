@@ -39,19 +39,20 @@ extern "C" void app_main(void) {
         adc_drv_oneshot_read_raw(&adc_ctx, ADC_IN_CHANNEL_1, &raw_ch1);
         adc_drv_oneshot_read_voltage(&adc_ctx, ADC_IN_CHANNEL_1, &volt_ch1);
         adc_drv_oneshot_read_voltage_average(&adc_ctx, ADC_IN_CHANNEL_1, 16, &volt_avg_ch1);
+        float voltageCalculated = (raw_ch1 / 4095.0f) * 3.3f * 1000;
+        float error =  std::abs(voltageCalculated - volt_ch1) / volt_ch1 * 100.0f;
 
-        // Channel 2 measurements
-        int raw_ch2 = 0;
-        int volt_ch2 = 0;
-        int volt_avg_ch2 = 0;
-        adc_drv_oneshot_read_raw(&adc_ctx, ADC_IN_CHANNEL_2, &raw_ch2);
-        adc_drv_oneshot_read_voltage(&adc_ctx, ADC_IN_CHANNEL_2, &volt_ch2);
-        adc_drv_oneshot_read_voltage_average(&adc_ctx, ADC_IN_CHANNEL_2, 16, &volt_avg_ch2);
+      ESP_LOGI(TAG,
+         "CH%d: Raw=%d, Volt=%d mV, VoltCalculated=%.2f mV (Error=%.2f )",
+         ADC_IN_CHANNEL_1,
+         raw_ch1,
+         volt_ch1,
+         voltageCalculated,
+         error);
 
-        ESP_LOGI(TAG, "CH%d: Raw=%d, Volt=%d mV (Avg=%d mV) | CH%d: Raw=%d, Volt=%d mV (Avg=%d mV)",
-                 ADC_IN_CHANNEL_1, raw_ch1, volt_ch1, volt_avg_ch1,
-                 ADC_IN_CHANNEL_2, raw_ch2, volt_ch2, volt_avg_ch2);
 
-        vTaskDelay(pdMS_TO_TICKS(1000));
+ 
+
+        vTaskDelay(pdMS_TO_TICKS(100));
     }
 }
