@@ -3,72 +3,46 @@
 #include "main.h"
 #include "printf/usb_printf.h"
 #include "pwm/pwm.h"
-#include "sound/sound.h"
+#include "servo/servo.h"
 
-const uint32_t c_note = 261;
-const uint32_t d_note = 294;
-const uint32_t e_note = 330;
+#define SERVO_GPIO_PORT PWM_PORT_B
+#define SERVO_GPIO_PIN 4
+#define SERVO_STEP_ANGLE 10
 
-const uint32_t SOUND_FREQUENCY_HZ[] = {
-    c_note,
-    c_note,
-    c_note,
-    d_note,
-    e_note,
-    e_note,
-    d_note,
-};
+extern "C" void main_cpp() {
+    bool error = false;
 
-extern "C" void main_cpp()
-{
-    PwmDriver_t pwm_led;
-    static uint16_t currentNote = 0;
-    uint32_t pwm_frequency_hz = Sound_GetPwmFrequency(SOUND_FREQUENCY_HZ[currentNote]);
+    PwmDriver_t servo_pwm;
+    Servo_t servo;
 
-    static uint32_t timer = 0;
-
-    if (!Pwm_InitByPin(&pwm_led, PWM_PORT_B, 4, pwm_frequency_hz, 50))
-    {
+    if (!Pwm_InitByPin(&servo_pwm, SERVO_GPIO_PORT,
+                SERVO_GPIO_PIN, SERVO_FREQUENCY_HZ, 0)) {
+        error = true;
         printf("PWM init failed\n");
     }
 
-    if (!Sound_Init(&pwm_led, SOUND_FREQUENCY_HZ[currentNote]))
-    {
-        printf("Sound init failed\n");
+    if (!error && !Servo_Init(&servo, &servo_pwm)) {
+        error = true;
+        printf("Servo init failed\n");
     }
 
-    timer = HAL_GetTick() + 200;
-    const uint32_t noteCount =
-        sizeof(SOUND_FREQUENCY_HZ) / sizeof(SOUND_FREQUENCY_HZ[0]);
-
-     while (1)
-    {
-        uint32_t now = HAL_GetTick();
-
-        if (now >= timer)
-        {
-            currentNote++;
-
-            if (currentNote >= noteCount)
-            {
-                currentNote = 0;
+    while (1) {
+        if (error) {
+            printf("Init error\n");
+        } else {
+            for (uint16_t angle = SERVO_MIN_ANGLE;
+                 angle <= SERVO_MAX_ANGLE; angle += SERVO_STEP_ANGLE) {
+                Servo_SetAngle(&servo, angle);
+                HAL_Delay(100);
             }
 
-            uint32_t frequency =
-                SOUND_FREQUENCY_HZ[currentNote];
-
-           
-            const uint32_t timerFrequency = 1000000;
-
-            uint32_t period = (timerFrequency / frequency) - 1;
-
-           
-            __HAL_TIM_SET_AUTORELOAD(
-                &pwm_led.htim,
-                period
-            );
-
-            timer = now + 200;
+            for (int angle = SERVO_MAX_ANGLE; angle >= SERVO_MIN_ANGLE;
+                 angle -= SERVO_STEP_ANGLE) {
+                Servo_SetAngle(&servo, (uint16_t)angle);
+                HAL_Delay(100);
+            }
         }
+
+        HAL_Delay(500);
     }
 }
