@@ -1,106 +1,75 @@
 #include <stdio.h>
+
+#include "driver/gpio.h"
+#include "esp_err.h"
+#include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "driver/gpio.h"
-#include "driver/gptimer.h"
-#include "Led.h"
-#include "Button.h"
-#include "ADC.h"
-#include <iterator>
+#include "pwm.h"
+#include "servo.h"
 
-#define BUTTON_IN GPIO_NUM_15
+#define SERVO_GPIO GPIO_NUM_15
+#define SERVO_INITIAL_ANGLE 90
+#define SERVO_MOVE_STEP 45
 
-Led led;
-Button button;
-ADC adc;
+static const char *TAG = "main";
 
-static bool IRAM_ATTR timer_on_alarm_cb(gptimer_handle_t timer,
-                                        const gptimer_alarm_event_data_t *edata,
-                                        void *user_data)
-{
-    static bool led_state;
-    led_state = !led_state;
-    gpio_set_level(led.LED_OUT, led_state);
+extern "C" void app_main(void) {
+    esp_err_t last_error = ESP_OK;
 
-    return true;
-}
+    // 1. Конфігурація PWM для SG90
+    pwm_t servo_pwm = {};
+    pwm_config_t servo_cfg = {
+        .gpio = SERVO_GPIO,
+        .channel = LEDC_CHANNEL_0,
+        .timer = LEDC_TIMER_0,
+        .frequency_hz = SERVO_FREQUENCY_HZ,
+        .resolution = LEDC_TIMER_14_BIT,
+        .duty = 0,
+        .inverted = false
+    };
 
-extern "C" void app_main()
-{
-
-    esp_err_t err = ESP_OK;
-
-    adc.Init();
-
-    // Налаштування структури GPIO для LED
-    gpio_config_t gpio_led_conf = {};
-    led.Init(&gpio_led_conf);
-
-    // Налаштування структури GPIO для BUTTON
-    gpio_config_t gpio_button_conf = {};
-    button.Init(&gpio_button_conf);
-
-    // Об'єкт таймера
-    gptimer_handle_t timer;
-    // Конфігурація таймера
-    gptimer_config_t timer_config = {};
-    timer_config.clk_src = GPTIMER_CLK_SRC_DEFAULT;
-    timer_config.direction = GPTIMER_COUNT_UP;
-    timer_config.resolution_hz = 1000000; // 1 MHz
-    // Створення нового таймера
-    err = gptimer_new_timer(&timer_config, &timer);
-    if (err != ESP_OK)
-    {
-        printf("Failed to create timer, err = %d\n", err);
-        return;
+    esp_err_t ret = pwm_init(&servo_pwm, &servo_cfg);
+    if (ret != ESP_OK) {
+        last_error = ret;
+        ESP_LOGE(TAG, "pwm_init failed: %s", esp_err_to_name(ret));
     }
 
-    // Конфігурація аларму таймера
-    gptimer_alarm_config_t alarm_config = {};
-    alarm_config.alarm_count = 1000000; // Тривалість 1 с
-    alarm_config.reload_count = 0;
-    alarm_config.flags.auto_reload_on_alarm = true;
-
-    // Створення аларму таймера
-    err = gptimer_set_alarm_action(timer, &alarm_config);
-    if (err != ESP_OK)
-    {
-        printf("Failed to set alarm action, err = %d\n", err);
-        return;
+    // 2. Ініціалізація сервомотора
+    servo_t servo = {};
+    ret = servo_init(&servo, &servo_pwm);
+    if (ret != ESP_OK) {
+        last_error = ret;
+        ESP_LOGE(TAG, "servo_init failed: %s", esp_err_to_name(ret));
+        pwm_deinit(&servo_pwm);
+    } else {
+        // Початкове положення сервомотора.
+        ret = servo_set_angle(&servo, SERVO_INITIAL_ANGLE);
+        if (ret != ESP_OK) {
+            last_error = ret;
+            ESP_LOGE(TAG, "servo_set_angle failed: %s", esp_err_to_name(ret));
+        }
     }
 
-    gptimer_event_callbacks_t timer_callbacks = {};
-    timer_callbacks.on_alarm = timer_on_alarm_cb;
+    uint16_t angle = SERVO_INITIAL_ANGLE;
+    while (1) {
+        if (last_error != ESP_OK) {
+            printf("Last init error: %s\n", esp_err_to_name(last_error));
+        } else {
+            ret = servo_set_angle(&servo, angle);
+            if (ret != ESP_OK) {
+                last_error = ret;
+                ESP_LOGE(TAG, "servo_set_angle failed: %s", esp_err_to_name(ret));
+            } else {
+                printf("Servo angle: %u degrees\n", angle);
+                if (angle >= SERVO_MAX_ANGLE) {
+                    angle = SERVO_MIN_ANGLE;
+                } else {
+                    angle += SERVO_MOVE_STEP;
+                }
+            }
+        }
 
-    err = gptimer_register_event_callbacks(timer, &timer_callbacks, NULL);
-    if (err != ESP_OK)
-    {
-        printf("Failed to register event callbacks, err = %d\n", err);
-        return;
-    }
-
-    gptimer_enable(timer);
-
-    gptimer_start(timer);
-
-    // Конфігурація GPIO
-    gpio_config(&gpio_led_conf);
-    gpio_config(&gpio_button_conf);
-
-    // Встановлення початкового стану
-    gpio_set_level(led.LED_OUT, 0);
-
-    while (1)
-    {
-
-        printf("ADC SMA value = %d\n", adc.SMA());
-
-     
-        if (adc.SMA() > 70)
-            gpio_set_level(led.LED_OUT, true);
-        else
-            gpio_set_level(led.LED_OUT, false);
-
-        vTaskDelay(100 / portTICK_PERIOD_MS);
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
