@@ -14,8 +14,7 @@
 
 extern "C" void main_cpp() {
 
-    printf("HELLO\r\n");
-HAL_Delay(1000);
+
 
   const uint32_t adc_channels[] = {ADC_CHANNEL_5, ADC_CHANNEL_6};
     uint32_t adc_values[2];
@@ -24,7 +23,7 @@ HAL_Delay(1000);
         Error_Handler();
     }
 
-
+/*
 
   bool error = false;
   ADC_HandleTypeDef hadc1;
@@ -37,10 +36,10 @@ HAL_Delay(1000);
     const uint32_t adcpin = 1;
     const uint32_t adcref = 4095;
 
-   /* if (!Pwm_InitByPin(&pwm_led, PWM_PORT_B, 4, 1000, 0))
+    if (!Pwm_InitByPin(&pwm_led, PWM_PORT_B, 4, 1000, 0))
     {
         printf("PWM init failed\n");
-    }*/
+    }
 
 
     PwmDriver_t servo_pwm;
@@ -56,11 +55,11 @@ HAL_Delay(1000);
         error = true;
         printf("Servo init failed\n");
     }
-
+*/
     while (1) {
 
-       uint32_t adcValue = HAL_ADC_GetValue(&hadc1);
-       printf("ADC: %lu\r\n", HAL_ADC_GetValue(&hadc1));
+      // uint32_t adcValue = HAL_ADC_GetValue(&adc_channels[0]);
+     //  printf("ADC: %lu\r\n", HAL_ADC_GetValue(&hadc1));
 
 /*
         if (error) {
