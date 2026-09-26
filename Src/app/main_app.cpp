@@ -4,7 +4,7 @@
 #include "printf/usb_printf.h"
 #include "pwm/pwm.h"
 #include "servo/servo.h"
-
+#include "adc/adc.h"
 
 #define SERVO_GPIO_PORT PWM_PORT_B
 #define SERVO_GPIO_PIN 4
@@ -16,6 +16,14 @@ extern "C" void main_cpp() {
 
     printf("HELLO\r\n");
 HAL_Delay(1000);
+
+  const uint32_t adc_channels[] = {ADC_CHANNEL_5, ADC_CHANNEL_6};
+    uint32_t adc_values[2];
+
+    if (ADC_Init(adc_channels, 2) != HAL_OK) {
+        Error_Handler();
+    }
+
 
 
   bool error = false;
