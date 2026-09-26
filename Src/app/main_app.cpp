@@ -14,7 +14,7 @@ extern "C" void main_cpp()
 {
 
     bool error = false;
- 
+    bool reversed = true;
     PwmDriver_t servo_pwm;
     Servo_t servo;
 
@@ -45,7 +45,15 @@ extern "C" void main_cpp()
         if (ADC_ReadSequence(adc_values, 1) != HAL_OK)
             continue;
 
-        uint32_t calculatedAngle = ((adc_values[0] * 180) / ADC_MAX_VALUE)*-1 + 180;
+        uint32_t calculatedAngle;
+
+
+        if (reversed)
+            calculatedAngle = ((adc_values[0] * 180) / ADC_MAX_VALUE) * -1 + 180;
+        else
+            calculatedAngle = ((adc_values[0] * 180) / ADC_MAX_VALUE);
+
+
 
         Servo_SetAngle(&servo, calculatedAngle);
 
