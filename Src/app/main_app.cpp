@@ -4,25 +4,31 @@
 #include "printf/usb_printf.h"
 #include "pwm/pwm.h"
 #include "servo/servo.h"
-#include "servo/adc.h"
+
 
 #define SERVO_GPIO_PORT PWM_PORT_B
 #define SERVO_GPIO_PIN 4
 #define SERVO_STEP_ANGLE 10
 
+
+
 extern "C" void main_cpp() {
-    bool error = false;
+  bool error = false;
+  ADC_HandleTypeDef hadc1;
+
+  if (HAL_ADC_Init(&hadc1) != HAL_OK)
+  {
+    Error_Handler();
+  }
 
     const uint32_t adcpin = 1;
     const uint32_t adcref = 4095;
 
-    if (!Pwm_InitByPin(&pwm_led, PWM_PORT_B, 4, 1000, 0))
+   /* if (!Pwm_InitByPin(&pwm_led, PWM_PORT_B, 4, 1000, 0))
     {
         printf("PWM init failed\n");
-    }
+    }*/
 
-  
-    ADC_Init(&adcpin,1);
 
     PwmDriver_t servo_pwm;
     Servo_t servo;
@@ -39,6 +45,11 @@ extern "C" void main_cpp() {
     }
 
     while (1) {
+
+       uint32_t adcValue = HAL_ADC_GetValue(&hadc1);
+       printf("ADC %d",adcValue);
+
+
         if (error) {
             printf("Init error\n");
         } else {
