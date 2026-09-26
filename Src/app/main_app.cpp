@@ -13,6 +13,11 @@
 
 
 extern "C" void main_cpp() {
+
+    printf("HELLO\r\n");
+HAL_Delay(1000);
+
+
   bool error = false;
   ADC_HandleTypeDef hadc1;
 
@@ -47,9 +52,9 @@ extern "C" void main_cpp() {
     while (1) {
 
        uint32_t adcValue = HAL_ADC_GetValue(&hadc1);
-       printf("ADC %d",adcValue);
+       printf("ADC: %lu\r\n", HAL_ADC_GetValue(&hadc1));
 
-
+/*
         if (error) {
             printf("Init error\n");
         } else {
@@ -66,6 +71,6 @@ extern "C" void main_cpp() {
             }
         }
 
-        HAL_Delay(500);
+        HAL_Delay(500);*/
     }
 }
