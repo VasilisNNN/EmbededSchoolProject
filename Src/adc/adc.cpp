@@ -5,6 +5,7 @@ static uint32_t adc_channel_count;
 
 #define ADC_CONVERSION_TIMEOUT      10
 #define ADC_MAX_SEQUENCE_CHANNELS   16
+#define ADC_MAX_VALUE  4095
 
 // Налаштування пінів GPIO для каналів АЦП
 static void ConfigureChannelPin(uint32_t channel)

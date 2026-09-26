@@ -16,30 +16,20 @@ extern "C" void main_cpp() {
 
 
 
-  const uint32_t adc_channels[] = {ADC_CHANNEL_5, ADC_CHANNEL_6};
-    uint32_t adc_values[2];
-
-    if (ADC_Init(adc_channels, 2) != HAL_OK) {
-        Error_Handler();
-    }
-
-/*
-
   bool error = false;
-  ADC_HandleTypeDef hadc1;
+  //ADC_HandleTypeDef hadc1;
+ // const uint32_t adccount = 1;
 
-  if (HAL_ADC_Init(&hadc1) != HAL_OK)
+ /* if (HAL_ADC_Init(&hadc1) != HAL_OK)
   {
     Error_Handler();
-  }
+  }*/
 
-    const uint32_t adcpin = 1;
-    const uint32_t adcref = 4095;
 
-    if (!Pwm_InitByPin(&pwm_led, PWM_PORT_B, 4, 1000, 0))
+    /*if (!Pwm_InitByPin(&pwm_led, PWM_PORT_B, 4, 1000, 0))
     {
         printf("PWM init failed\n");
-    }
+    }*/
 
 
     PwmDriver_t servo_pwm;
@@ -55,29 +45,34 @@ extern "C" void main_cpp() {
         error = true;
         printf("Servo init failed\n");
     }
-*/
+
+
+ 
+
+
+
+    const uint32_t adc_channels[] = {ADC_CHANNEL_5};
+     uint32_t adc_values[1];
+
+    if (ADC_Init(adc_channels, 1) != HAL_OK) {
+        Error_Handler();
+    }
+
     while (1) {
 
-      // uint32_t adcValue = HAL_ADC_GetValue(&adc_channels[0]);
-     //  printf("ADC: %lu\r\n", HAL_ADC_GetValue(&hadc1));
-
-/*
-        if (error) {
-            printf("Init error\n");
-        } else {
-            for (uint16_t angle = SERVO_MIN_ANGLE;
-                 angle <= SERVO_MAX_ANGLE; angle += SERVO_STEP_ANGLE) {
-                Servo_SetAngle(&servo, angle);
-                HAL_Delay(100);
-            }
-
-            for (int angle = SERVO_MAX_ANGLE; angle >= SERVO_MIN_ANGLE;
-                 angle -= SERVO_STEP_ANGLE) {
-                Servo_SetAngle(&servo, (uint16_t)angle);
-                HAL_Delay(100);
-            }
+ printf("HELLO");
+       
+  if (ADC_ReadSequence(adc_values, 1) == HAL_OK) {
+            printf("ADC PA5: %lu \n",adc_values[0]);
         }
 
-        HAL_Delay(500);*/
+
+        float calculatedAngle = ((float)adc_values[0] / (float)ADC_MAX_VALUE) *180.0;
+
+
+              Servo_SetAngle(&servo, calculatedAngle);
+        
+
+        HAL_Delay(50);
     }
 }
