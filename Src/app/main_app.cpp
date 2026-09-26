@@ -4,6 +4,7 @@
 #include "printf/usb_printf.h"
 #include "pwm/pwm.h"
 #include "servo/servo.h"
+#include "servo/adc.h"
 
 #define SERVO_GPIO_PORT PWM_PORT_B
 #define SERVO_GPIO_PIN 4
@@ -11,6 +12,17 @@
 
 extern "C" void main_cpp() {
     bool error = false;
+
+    const uint32_t adcpin = 1;
+    const uint32_t adcref = 4095;
+
+    if (!Pwm_InitByPin(&pwm_led, PWM_PORT_B, 4, 1000, 0))
+    {
+        printf("PWM init failed\n");
+    }
+
+  
+    ADC_Init(&adcpin,1);
 
     PwmDriver_t servo_pwm;
     Servo_t servo;
