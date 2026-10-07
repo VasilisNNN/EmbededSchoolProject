@@ -1,25 +1,36 @@
-**ESP32 WS2812 Rainbow Demo**
+# ESP32-S3 UART Demonstration
 
-[WS2812 Datasheet](https://github.com/littlebirdelectronics/LB-00130/blob/master/datasheets/WS2812.pdf)
+This project demonstrates UART communication on the ESP32-S3 using ESP-IDF and PlatformIO. The application receives bytes over UART1, logs each received byte in HEX and character formats, and echoes it back to the sender.
 
-- **Overview:** Simple demo that runs a rainbow cycle on a single WS2812 (NeoPixel) LED connected to an ESP32 board.
+## UART Configuration
 
-- **Source:** src/main.cpp
+- Driver: `lib/uart/uart.c` and `lib/uart/uart.h`
+- Interface: UART1, 115200 baud, 8 data bits, no parity, 1 stop bit (8N1)
+- TX: GPIO 17
+- RX: GPIO 18
+- `uart_receive()` and `uart_transmit()` return `esp_err_t`. Receive timeout is reported as `ESP_ERR_TIMEOUT`.
 
-**Hardware**
-- **Board:** YD-ESP32-S3 (ESP32-S3 N16R8)
-- **LED:** WS2812 / NeoPixel (single RGB LED)
-- **Data pin:** Default set to `LED_PIN = 48` in `src/main.cpp`.
+Connect the USB-UART adapter TX to GPIO 18, RX to GPIO 17, and connect GND. The USB serial console is separate and is used for application logs.
 
-**Features**
-- Smooth rainbow animation using the Adafruit_NeoPixel library.
-- Configurable brightness and number of pixels via `src/main.cpp`.
+## Build and Flash
 
-**Build & Flash (PlatformIO)**
+- Platform: `espressif32`
+- Board: `esp32-s3-devkitc-1`
+- Framework: `espidf`
 
-```bash
-pio run
+Build and upload with:
+
+```sh
 pio run -t upload
 ```
 
+View application logs with:
 
+```sh
+pio run -t monitor
+```
+
+## Source Files
+
+- Application: `src/main.cpp`
+- UART driver: `lib/uart/uart.c` and `lib/uart/uart.h`
