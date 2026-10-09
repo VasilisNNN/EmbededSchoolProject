@@ -1,201 +1,72 @@
+#include <stdint.h>
 #include <stdio.h>
-#include <stdbool.h>
 #include "main.h"
-#include "printf/usb_printf.h"
-#include "pwm/pwm.h"
-#include "adc/adc.h"
-#include "app/main_app.h"
-#include "encoder/encoder.h"
-#include "screen/ssd1306.h"
-#include "fonts/fonts.h"
+#include "i2c/i2c.h"
 
-extern TIM_HandleTypeDef htim3;
+#define I2C_TIMEOUT_MS 100
+#define I2C_SPEED_HZ 100000U
 
-int32_t encoder_prev = 0;
+#define DS1307_ADDRESS 0x68
+#define DISPLAY_ADDRESS 0x3C
+#define DS1307_REG_START 0x00
+#define DS1307_REG_COUNT 8
 
-int32_t firstOperand = 0;
-int32_t secondOperand = 0;
-int32_t thirdOperand = 0;
-
-CalculatorOperand calOperator;
-MathAction mathAction;
-char action[5];
-int32_t buttonTimer;
-int32_t rotationTimer;
-
-extern "C" void ALT_MAIN_Init()
-{
-    calOperator = CalculatorOperand::First;
-    SSD1306_Init();
-}
+static I2C_HandleTypeDef hi2c1;
 
 extern "C" void main_cpp()
 {
-    action[0] = '+';
-    action[1] = '-';
-    action[2] = 'x';
-    action[3] = '/';
-    action[4] = '\0';
+    HAL_StatusTypeDef status = I2C_Init(&hi2c1, I2C1, I2C_SPEED_HZ);
+    if (status != HAL_OK)
+    {
+        printf("[I2C] I2C1 initialization failed (status=%d)\r\n", (int)status);
+        return;
+    }
 
-    Encoder_Start();
-    bool error = false;
-    bool reversed = true;
+    HAL_Delay(500);
 
-    float result;
+    uint8_t found[16];
+    uint8_t found_count = 0;
+
+    status = I2C_Scan(&hi2c1, found, sizeof(found), &found_count, 10);
+    if (status != HAL_OK)
+    {
+        printf("[I2C] Scan failed (status=%d)\r\n", (int)status);
+        return;
+    }
+
+    printf("[I2C] Scan: %u device(s) found\r\n", (unsigned)found_count);
+    for (uint8_t i = 0; (i < found_count) && (i < sizeof(found)); i++)
+    {
+        printf("[I2C] Found device at 0x%02X\r\n", found[i]);
+    }
+
+    status = I2C_Probe(&hi2c1, DISPLAY_ADDRESS, I2C_TIMEOUT_MS);
+    if (status != HAL_OK)
+    {
+        printf("[I2C] DS1307 not found (status=%d)\r\n", (int)status);
+        return;
+    }
 
     while (1)
     {
+        uint8_t regs[DS1307_REG_COUNT];
 
-        SSD1306_GotoXY(0, 10);
-
-        char text[50];
-        char text2[50];
-        snprintf(text, sizeof(text), "%ld %c %ld",
-                 (long)firstOperand,
-                 action[secondOperand],
-                 (long)thirdOperand);
-
-        SSD1306_Puts(text, &Font_11x18, SSD1306_COLOR_WHITE);
-
-        SSD1306_GotoXY(0, 40);
-
-        snprintf(text2, sizeof(text2), "Res: %.2f",
-                 result);
-
-        SSD1306_Puts(text2, &Font_11x18, SSD1306_COLOR_WHITE);
-
-        SSD1306_UpdateScreen();
-
-        int32_t encoder_now = Encoder_GetValue();
-        int32_t diff = encoder_now - encoder_prev;
-
-        int32_t currentTime = HAL_GetTick();
-
-        if (diff != 0 && rotationTimer < currentTime)
+        status = I2C_ReadRegister(&hi2c1, DISPLAY_ADDRESS, DS1307_REG_START,
+                                  regs, sizeof(regs), I2C_TIMEOUT_MS);
+        if (status == HAL_OK)
         {
-
-            switch (secondOperand)
+            printf("[I2C] DS1307:");
+            for (uint8_t i = 0; i < sizeof(regs); i++)
             {
-            case 0:
-                mathAction = MathAction::Plus;
-                break;
-            case 1:
-                mathAction = MathAction::Minus;
-                break;
-            case 2:
-                mathAction = MathAction::Multiply;
-                break;
-            case 3:
-                mathAction = MathAction::Divide;
-                break;
-
-            default:
-                break;
+                printf(" %02X", regs[i]);
             }
-
-            if (diff > 0)
-            {
-                SSD1306_Clear();
-
-                printf("TURN RIGHT \n");
-
-                if (calOperator == CalculatorOperand::First)
-                    firstOperand++;
-
-                if (calOperator == CalculatorOperand::Second)
-                    if (rotationTimer < currentTime)
-                    {
-                        if (secondOperand < strlen(action) - 1)
-                            secondOperand++;
-                        rotationTimer = currentTime + 500;
-                    }
-                if (calOperator == CalculatorOperand::Third)
-                    thirdOperand++;
-            }
-            else if (diff < 0)
-            {
-                SSD1306_Clear();
-
-                printf("TURN LEFT \n");
-
-                if (calOperator == CalculatorOperand::First)
-                    firstOperand--;
-
-                if (calOperator == CalculatorOperand::Second)
-                {
-                    if (rotationTimer < currentTime)
-                    {
-                        if (secondOperand > 0)
-                            secondOperand--;
-                        rotationTimer = currentTime + 500;
-                    }
-                }
-                if (calOperator == CalculatorOperand::Third)
-                    thirdOperand--;
-            }
-
-            if (calOperator != CalculatorOperand::Second)
-                rotationTimer = currentTime + 100;
-            encoder_prev = encoder_now;
+            printf("\r\n");
+        }
+        else
+        {
+            printf("[I2C] Register read failed (status=%d)\r\n", (int)status);
         }
 
-        static uint32_t calculatedAngle = 90;
-        calculatedAngle++;
-
-        if (calculatedAngle > 180)
-            calculatedAngle = 0;
-
-        static GPIO_PinState button;
-        button = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_2);
-
-        result = CalculateResult(&mathAction);
-
-        if (button == 0)
-        {
-            if (buttonTimer < currentTime)
-            {
-
-                switch (calOperator)
-                {
-                case CalculatorOperand::First:
-                    calOperator = CalculatorOperand::Second;
-                    break;
-                case CalculatorOperand::Second:
-                    calOperator = CalculatorOperand::Third;
-                    break;
-                case CalculatorOperand::Third:
-                    calOperator = CalculatorOperand::First;
-                    break;
-
-                default:
-                    break;
-                }
-
-                printf("Programmer button pressed");
-
-                buttonTimer = currentTime + 1000;
-            }
-        }
-    }
-}
-
-float CalculateResult(MathAction *cop)
-{
-    switch (*cop)
-    {
-    case MathAction::Plus:
-        return firstOperand + thirdOperand;
-
-    case MathAction::Minus:
-        return firstOperand - thirdOperand;
-
-    case MathAction::Multiply:
-        return firstOperand * thirdOperand;
-
-    case MathAction::Divide:
-        return (float)firstOperand / (float)thirdOperand;
-
-    default:
-        return 0.0f;
+        HAL_Delay(1000);
     }
 }
