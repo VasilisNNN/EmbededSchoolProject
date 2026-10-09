@@ -1,75 +1,35 @@
-#include <stdio.h>
-
-#include "driver/gpio.h"
-#include "esp_err.h"
-#include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "pwm.h"
-#include "servo.h"
+#include "esp_log.h"
+#include "uart.h"
 
-#define SERVO_GPIO GPIO_NUM_15
-#define SERVO_INITIAL_ANGLE 90
-#define SERVO_MOVE_STEP 45
+static const char *TAG = "app";
 
-static const char *TAG = "main";
-
-extern "C" void app_main(void) {
-    esp_err_t last_error = ESP_OK;
-
-    // 1. Конфігурація PWM для SG90
-    pwm_t servo_pwm = {};
-    pwm_config_t servo_cfg = {
-        .gpio = SERVO_GPIO,
-        .channel = LEDC_CHANNEL_0,
-        .timer = LEDC_TIMER_0,
-        .frequency_hz = SERVO_FREQUENCY_HZ,
-        .resolution = LEDC_TIMER_14_BIT,
-        .duty = 0,
-        .inverted = false
-    };
-
-    esp_err_t ret = pwm_init(&servo_pwm, &servo_cfg);
-    if (ret != ESP_OK) {
-        last_error = ret;
-        ESP_LOGE(TAG, "pwm_init failed: %s", esp_err_to_name(ret));
+extern "C" void app_main()
+{
+    const esp_err_t init_err = uart_init();
+    if (init_err != ESP_OK) {
+        ESP_LOGE(TAG, "UART initialization failed: %s", esp_err_to_name(init_err));
+        return;
     }
 
-    // 2. Ініціалізація сервомотора
-    servo_t servo = {};
-    ret = servo_init(&servo, &servo_pwm);
-    if (ret != ESP_OK) {
-        last_error = ret;
-        ESP_LOGE(TAG, "servo_init failed: %s", esp_err_to_name(ret));
-        pwm_deinit(&servo_pwm);
-    } else {
-        // Початкове положення сервомотора.
-        ret = servo_set_angle(&servo, SERVO_INITIAL_ANGLE);
-        if (ret != ESP_OK) {
-            last_error = ret;
-            ESP_LOGE(TAG, "servo_set_angle failed: %s", esp_err_to_name(ret));
-        }
-    }
+    ESP_LOGI(TAG, "UART echo application started");
 
-    uint16_t angle = SERVO_INITIAL_ANGLE;
+    uint8_t received_byte;
     while (1) {
-        if (last_error != ESP_OK) {
-            printf("Last init error: %s\n", esp_err_to_name(last_error));
-        } else {
-            ret = servo_set_angle(&servo, angle);
-            if (ret != ESP_OK) {
-                last_error = ret;
-                ESP_LOGE(TAG, "servo_set_angle failed: %s", esp_err_to_name(ret));
-            } else {
-                printf("Servo angle: %u degrees\n", angle);
-                if (angle >= SERVO_MAX_ANGLE) {
-                    angle = SERVO_MIN_ANGLE;
-                } else {
-                    angle += SERVO_MOVE_STEP;
-                }
+        const esp_err_t receive_err = uart_receive(&received_byte, 1, 0);
+        if (receive_err == ESP_OK) {
+            ESP_LOGI(TAG, "UART RX: 0x%02X \"%c\"",
+                     (unsigned int)received_byte, (int)received_byte);
+
+            const esp_err_t transmit_err = uart_transmit(&received_byte, 1);
+            if (transmit_err != ESP_OK) {
+                ESP_LOGE(TAG, "UART transmit error: %s", esp_err_to_name(transmit_err));
             }
+        } else if (receive_err != ESP_ERR_TIMEOUT) {
+            ESP_LOGE(TAG, "UART receive error: %s", esp_err_to_name(receive_err));
         }
 
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        vTaskDelay(200 / portTICK_PERIOD_MS);
     }
 }
