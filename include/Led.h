@@ -4,6 +4,6 @@
 class Led
 {
 public:
-    void Init(gpio_config_t* gpio_led_conf);
-    const gpio_num_t LED_OUT = GPIO_NUM_16;
+    void Init(gpio_config_t* gpio_led_conf, gpio_num_t led_pin);
+
 };
