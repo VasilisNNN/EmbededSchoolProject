@@ -7,13 +7,11 @@
 
 
 static const char *TAG = "app";
-Led led;
 gpio_config_t gpio_led_conf;
 
 extern "C" void app_main()
 {
   
-     led.Init(&gpio_led_conf, GPIO_NUM_11); 
 
     const esp_err_t init_err = uart_init();
     if (init_err != ESP_OK) {
