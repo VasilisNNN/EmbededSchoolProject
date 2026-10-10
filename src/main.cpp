@@ -4,16 +4,22 @@
 #include "esp_log.h"
 #include "uart.h"
 #include "led.h"
-
+#include "Button.h"
 
 static const char *TAG = "app";
 Led led;
+Button button;
 gpio_config_t gpio_led_conf;
+gpio_config_t gpio_button_conf;
+
 
 extern "C" void app_main()
 {
   
-     led.Init(&gpio_led_conf, GPIO_NUM_11); 
+    led.Init(&gpio_led_conf, GPIO_NUM_11); 
+    button.Init(&gpio_button_conf, GPIO_NUM_9); 
+
+
 
     const esp_err_t init_err = uart_init();
     if (init_err != ESP_OK) {
@@ -40,4 +46,7 @@ extern "C" void app_main()
 
         vTaskDelay(200 / portTICK_PERIOD_MS);
     }
+
+
+    
 }
