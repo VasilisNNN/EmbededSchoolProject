@@ -43,20 +43,16 @@ extern "C" void app_main()
         }
 
         const esp_err_t receive_err = uart_receive(&received_byte, 1, 0);
-        /*if (receive_err == ESP_OK)
+        if (receive_err == ESP_OK)
         {
 
             // print recieved bytes
             ESP_LOGI(TAG, "UART RX: 0x%02X \"%c\"",
-                     (unsigned int)received_byte, (int)received_byte);
-
+                     (unsigned int)received_byte, received_byte);
+            vTaskDelay(200 / portTICK_PERIOD_MS);
+    }
        
         }
-        else if (receive_err != ESP_ERR_TIMEOUT)
-        {
-            ESP_LOGE(TAG, "UART receive error: %s", esp_err_to_name(receive_err));
-        }*/
-
-        //  vTaskDelay(200 / portTICK_PERIOD_MS);
-    }
+        
+         
 }
