@@ -37,11 +37,11 @@ extern "C" void main_cpp()
         if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_8) == 0)
         {
             printf("send_buffer %c\n", send_buffer);
-            UART_SendText(send_buffer);
+            UART_SendText("Yes");
         }
         else
         {
-            UART_SendText("0");
+            UART_SendText("No");
 
         }
 
