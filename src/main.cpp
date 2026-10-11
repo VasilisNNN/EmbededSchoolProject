@@ -37,36 +37,25 @@ extern "C" void app_main()
 
         if (gpio_get_level(button.BUTTON_IN) == 0)
         {
-            const esp_err_t transmit_err =
-                uart_transmit((uint8_t *)info, strlen(info));
-
-            if (transmit_err != ESP_OK)
-            {
-                ESP_LOGE(TAG, "UART transmit error: %s",
-                         esp_err_to_name(transmit_err));
-            }
+            uart_transmit((uint8_t *)info, strlen(info));
 
             printf("PRESSED");
         }
 
         const esp_err_t receive_err = uart_receive(&received_byte, 1, 0);
-        if (receive_err == ESP_OK)
+        /*if (receive_err == ESP_OK)
         {
 
             // print recieved bytes
             ESP_LOGI(TAG, "UART RX: 0x%02X \"%c\"",
                      (unsigned int)received_byte, (int)received_byte);
 
-            const esp_err_t transmit_err = uart_transmit(&received_byte, 1);
-            if (transmit_err != ESP_OK)
-            {
-                ESP_LOGE(TAG, "UART transmit error: %s", esp_err_to_name(transmit_err));
-            }
+       
         }
         else if (receive_err != ESP_ERR_TIMEOUT)
         {
             ESP_LOGE(TAG, "UART receive error: %s", esp_err_to_name(receive_err));
-        }
+        }*/
 
         //  vTaskDelay(200 / portTICK_PERIOD_MS);
     }
