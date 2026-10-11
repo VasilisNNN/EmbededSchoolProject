@@ -3,7 +3,7 @@
 #include "esp_err.h"
 #include "esp_log.h"
 #include "uart.h"
-#include "led.h"
+#include "Led.h"
 #include "Button.h"
 #include <cstring>
 
@@ -35,13 +35,13 @@ extern "C" void app_main()
     while (1)
     {
 
-         if (gpio_get_level(button.BUTTON_IN) == 0)
-         {
-             uart_transmit((uint8_t *)info, strlen(info));
-
-             printf("PRESSED");
-             continue;
-         }
+        if (gpio_get_level(button.BUTTON_IN) == 0)
+        {
+            uart_transmit((uint8_t *)info, strlen(info));
+            gpio_set_level(GPIO_NUM_10, 1);
+            printf("PRESSED");
+            continue;
+        }
 
         const esp_err_t receive_err = uart_receive(&received_byte, 1, 0);
 
@@ -50,13 +50,13 @@ extern "C" void app_main()
             ESP_LOGI(TAG, "UART RX: 0x%02X '%c'",
                      (unsigned int)received_byte,
                      (int)received_byte);
+
+            gpio_set_level(GPIO_NUM_10, 0);
         }
         else
         {
             // Give other FreeRTOS tasks CPU time
-             vTaskDelay(pdMS_TO_TICKS(1));
+            vTaskDelay(pdMS_TO_TICKS(1));
         }
-
-       
     }
 }
