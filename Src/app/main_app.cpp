@@ -6,6 +6,7 @@
 #include "main_app.h"
 
 extern UART_HandleTypeDef huart1;
+#define BUTTON_IN = 6;
 
 void UART_SendText(const char *text)
 {
@@ -22,7 +23,6 @@ uint32_t ind = 0;
 
 extern "C" void ALT_MAIN_Init()
 {
-    
 }
 
 extern "C" void main_cpp()
@@ -30,6 +30,15 @@ extern "C" void main_cpp()
 
     while (1)
     {
+
+        if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_0) == GPIO_PIN_RESET)
+        {
+            // Button is pressed
+        }
+        else
+        {
+            // Button is released
+        }
 
         if (HAL_UART_Receive(
                 &huart1,
@@ -53,5 +62,4 @@ extern "C" void main_cpp()
             }
         }
     }
-
 }
