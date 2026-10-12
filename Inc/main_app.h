@@ -1,1 +1,0 @@
-void UART_SendText(const char *text);

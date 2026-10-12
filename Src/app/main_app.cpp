@@ -1,79 +1,66 @@
+#include <stdint.h>
 #include <stdio.h>
-#include <stdbool.h>
 #include "main.h"
-#include "main_app.h"
-#include "printf/usb_printf.h"
-#include "main_app.h"
+#include "i2c/i2c.h"
+#include "oled/oled.h"
 
-extern UART_HandleTypeDef huart1;
-#define BUTTON_IN = 6;
+#define I2C_TIMEOUT_MS 100
+#define I2C_SPEED_HZ 100000U
 
-void UART_SendText(const char *text)
-{
-    HAL_UART_Transmit(
-        &huart1,
-        (uint8_t *)text,
-        strlen(text),
-        HAL_MAX_DELAY);
-}
-
-uint8_t received_byte;
-char buffer[100];
-char send_buffer[4];
-uint32_t ind = 0;
-
-extern "C" void ALT_MAIN_Init()
-{
-}
+static I2C_HandleTypeDef hi2c1;
 
 extern "C" void main_cpp()
 {
-    send_buffer[0] = 'Y';
-    send_buffer[1] = 'e';
-    send_buffer[2] = 's';
-    send_buffer[3] = '\0';
-
-
-    while (1)
+    HAL_StatusTypeDef status = I2C_Init(&hi2c1, I2C1, I2C_SPEED_HZ);
+    if (status != HAL_OK)
     {
+        printf("[I2C] I2C1 initialization failed (status=%d)\r\n", (int)status);
+        return;
+    }
 
-        if (HAL_UART_Receive(
-                &huart1,
-                &received_byte,
-                1,
-                10) == HAL_OK)
-        {
+    /* Затримка, щоб встигнути підключити термінал до USB CDC */
+    HAL_Delay(5000);
 
-            HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1,GPIO_PinState::GPIO_PIN_SET);
+    /* Сканування шини I2C */
+    uint8_t found[16];
+    uint8_t found_count = 0;
 
-            printf("received_byte %c\n", (char)received_byte);
+    status = I2C_Scan(&hi2c1, found, sizeof(found), &found_count, 10);
+    if (status != HAL_OK)
+    {
+        printf("[I2C] Scan failed (status=%d)\r\n", (int)status);
+        return;
+    }
 
-            if (received_byte == '\r' || received_byte == '\n')
-            {
-                buffer[ind] = '\0';
+    printf("[I2C] Scan: %u device(s) found\r\n", (unsigned)found_count);
+    for (uint8_t i = 0; (i < found_count) && (i < sizeof(found)); i++)
+    {
+        printf("[I2C] Found device at 0x%02X\r\n", found[i]);
+    }
 
-                UART_SendText("Received: ");
-                UART_SendText(buffer);
-                UART_SendText("\r\n");
+    /* Ініціалізація дисплея 128x64 з адресою 0x3C */
+    OLED_SettingsTypeDef oled_settings = OLED_SETTINGS_128X64_DEFAULT();
+    OLED_HandleTypeDef *oled = NULL;
 
-                ind = 0;
-            }
-            else if (ind < sizeof(buffer) - 1)
-            {
-                buffer[ind++] = (char)received_byte;
-            }
-        }
-        else
-        {
-             HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1,GPIO_PinState::GPIO_PIN_RESET);
+    status = OLED_Init(&hi2c1, &oled_settings, &oled);
+    if (status != HAL_OK)
+    {
+        printf("[OLED] Initialization failed (status=%d)\r\n", (int)status);
+        return;
+    }
 
-            if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_8) == 0)
-            {
-                printf("send_buffer %c\n", send_buffer[0]);
-                UART_SendText(send_buffer);
-               
-            }
-            
-        }
+    /* Заголовок та прості фігури */
+    OLED_Print(oled, 0, 1, true, "SSD1306 OLED");
+    OLED_DrawRectangle(oled, 0, 16, 40, 24, false);
+    OLED_FillCircle(oled, 64, 28, 10, false);
+    OLED_DrawLine(oled, 88, 16, 127, 39, false);
+
+    printf("[OLED] SSD1306 ready\r\n");
+
+    /* Лічильник секунд в 6-му рядку сторінок */
+    for (uint32_t tick = 0;; tick++)
+    {
+        OLED_Printf(oled, 6, 1, "Tick: %lu", (unsigned long)tick);
+        HAL_Delay(1000);
     }
 }
