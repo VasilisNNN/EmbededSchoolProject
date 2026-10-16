@@ -6,6 +6,7 @@
 
 #include "driver/i2c_master.h"
 #include "esp_err.h"
+#include "ssd1306.h"
 
 #ifdef __cplusplus
 extern "C" {

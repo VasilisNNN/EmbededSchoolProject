@@ -6,6 +6,7 @@
 
 #include "esp_check.h"
 #include "esp_log.h"
+
 #include "ssd1306.h"
 
 #define OLED_DEFAULT_ADDRESS 0x3C
