@@ -4,7 +4,7 @@
 #include <stdlib.h>
 
 #include "esp_log.h"
-#include "i2c.h"
+#include "i2c/i2c.h"
 
 #define DS1307_I2C_ADDRESS 0x68U
 #define DS1307_I2C_SPEED_HZ 100000U
