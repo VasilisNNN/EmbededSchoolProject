@@ -4,6 +4,7 @@
 #include <string.h>
 #include "esp_err.h"
 #include "driver/i2c.h"
+#include "sdkconfig.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
@@ -21,6 +22,8 @@
 
 #define SSD1306_CONTROL_CMD  0x00
 #define SSD1306_CONTROL_DATA 0x40
+
+
 
 static esp_err_t ssd1306_write(
     i2c_port_t port,
