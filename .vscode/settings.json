@@ -1,4 +1,5 @@
 {
     "cmake.sourceDirectory": "C:/Embeded/SchoolProject/src",
-    "cmake.autoDetectSourceDirectory": false
+    "cmake.autoDetectSourceDirectory": false,
+    "git.ignoreLimitWarning": true
 }
