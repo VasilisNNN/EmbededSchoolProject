@@ -38,7 +38,7 @@ extern "C" void main_cpp()
     {
         OLED_Clear(oled);
 
-        OLED_Print(oled, 0, 1, false, "DS1307 CLOCK");
+        OLED_Print(oled, 0, 1, false, "MY CLOCK <3");
 
         DS1307_DateTimeTypeDef datetime;
         DS1307_GetDateTime(rtc, &datetime);
