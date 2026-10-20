@@ -2,10 +2,6 @@
 
 #include <stdlib.h>
 
-#define DS1307_ADDRESS 0x68U
-#define DS1307_TIMEOUT_MS 100U
-#define DS1307_REG_SECONDS 0x00U
-#define DS1307_REG_COUNT 7U
 
 #define DS1307_CH_BIT 0x80U  /* Clock Halt у регістрі секунд */
 #define DS1307_12H_BIT 0x40U /* 12-годинний режим у регістрі годин */
