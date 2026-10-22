@@ -22,7 +22,7 @@ static void PrintDisplayLine(OLED_HandleTypeDef *oled, uint8_t row, const char *
 STRING FomatString(int variable, STRING end)
 {
 
-    STRING result = "0";
+    STRING result = " ";
    
     if (variable < 0)
     {
@@ -60,6 +60,10 @@ extern "C" void main_cpp()
     BME280_HandleTypeDef *bme280 = NULL;
     BME280_Init(&hi2c1, &bme280);
 
+    DS1307_DateTimeTypeDef initialTime = {2026, 10, 20, 3, 20, 56, 0};
+    DS1307_SetDateTime(rtc, &initialTime);
+
+
     while (1)
     {
         DS1307_DateTimeTypeDef date;
@@ -92,7 +96,7 @@ extern "C" void main_cpp()
 
         OLED_Clear(oled);
 
-        PrintDisplayLine(oled, 0, "CLOCK / BME280");
+        PrintDisplayLine(oled, 0, "Clock / Weather");
         PrintDisplayLine(oled, 1, dateText.c_str());
         OLED_Print(oled, 2, 2, false, timeText.c_str());
 
