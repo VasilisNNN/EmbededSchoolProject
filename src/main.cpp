@@ -3,6 +3,8 @@
 #include "esp_log.h"
 #include "i2c/i2c.h"
 #include "oled.h"
+#include "bmp280_i2c.h"
+#include "spi/spi_slave_app.h"
 
 static const char *TAG = "app";
 
@@ -13,7 +15,13 @@ static const char *TAG = "app";
 
 extern "C" void app_main()
 {
-    // 1. Створюємо шину I2C
+    ESP_ERROR_CHECK(spi_slave_app_start());
+
+    int32_t pressure;
+    bmp280_i2c_read_pressure_r(&pressure);
+
+
+    
     i2c_master_bus_handle_t bus = NULL;
     i2c_bus_settings_t bus_cfg = {};
     bus_cfg.port = I2C_MASTER_NUM;
@@ -22,7 +30,7 @@ extern "C" void app_main()
     bus_cfg.enable_internal_pullup = true;
     ESP_ERROR_CHECK(i2c_bus_init(&bus_cfg, &bus));
 
-    // 2. Ініціалізуємо дисплей 128x64 (адреса 0x3C, 400 кГц за замовчуванням)
+   
     oled_settings_t oled_cfg = OLED_SETTINGS_128X64_DEFAULT();
     oled_handle_t oled = NULL;
     esp_err_t err = oled_init(bus, &oled_cfg, &oled);

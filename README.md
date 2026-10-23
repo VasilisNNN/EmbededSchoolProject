@@ -1,6 +1,14 @@
-# Драйвери UART, I2C, OLED і DS1307 для ESP32-S3
+# Драйвери SPI slave, UART, I2C, OLED і DS1307 для ESP32-S3
 
-Проєкт містить модулі UART та I2C для ESP32-S3 (ESP-IDF + PlatformIO), а також OLED-драйвер для SSD1306. Поточний приклад у `src/main.cpp` ініціалізує I2C і OLED 128x64, виводить заголовок та малює просту фігуру.
+Проєкт містить модулі UART, I2C і SPI slave для ESP32-S3 (ESP-IDF + PlatformIO), а також OLED-драйвер для SSD1306. Поточний приклад у `src/main.cpp` запускає SPI slave та ініціалізує I2C/OLED 128x64.
+
+## SPI slave
+
+- ESP32-S3 працює як slave через ESP-IDF `driver/spi_slave.h` на SPI2, режим SPI 0.
+- Піни ESP32-S3: CS GPIO 10, SCLK GPIO 12, MOSI GPIO 11, MISO GPIO 13. З'єднайте їх з однойменними лініями SPI master (CS до CS, SCLK до SCLK, master MOSI до slave MOSI, master MISO до slave MISO) і з'єднайте GND.
+- Кожна транзакція має рівно 4 байти. ESP32 виводить прийняті байти в serial log і одночасно передає master тестову послідовність `A5 5A C3 3C`.
+- Передача SPI повнодуплексна: master має надіслати чотири байти й одночасно зчитати чотири байти відповіді за одну транзакцію. CS має бути активним увесь час транзакції.
+- Код slave: `lib/spi/spi_slave_app.c` та `lib/spi/spi_slave_app.h`.
 
 ## Модуль I2C
 
