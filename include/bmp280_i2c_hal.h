@@ -36,7 +36,9 @@
 extern "C" {
 #endif
 
-#include "stdint.h"
+#include <stdint.h>
+
+#include "driver/i2c_master.h"
 
 #define BMP280_ERR     -1
 #define BMP280_OK      0x00
@@ -44,7 +46,7 @@ extern "C" {
 /**
  * @brief I2C init to be implemented by user based on hardware platform
  */
-int16_t bmp280_i2c_hal_init();
+int16_t bmp280_i2c_hal_init(i2c_master_bus_handle_t bus);
 
 /**
  * @brief I2C read to be implemented by user based on hardware platform

@@ -19,13 +19,14 @@
 static const char *TAG = "spi_slave";
 static DMA_ATTR uint8_t tx_data[SPI_SLAVE_TRANSACTION_SIZE] = {
     0xA5U, 0x5AU, 0xC3U, 0x3CU};
+
 static DMA_ATTR uint8_t rx_data[SPI_SLAVE_TRANSACTION_SIZE];
 
-static void spi_slave_task(void *arg)
+esp_err_t spi_slave_app_update(int32_t data)
 {
-    (void)arg;
 
-    while (1) {
+
+        tx_data[0] = data;
         spi_slave_transaction_t transaction = {0};
         transaction.length = SPI_SLAVE_TRANSACTION_SIZE * 8U;
         transaction.tx_buffer = tx_data;
@@ -35,14 +36,14 @@ static void spi_slave_task(void *arg)
             spi_slave_transmit(SPI_SLAVE_HOST, &transaction, portMAX_DELAY);
         if (err != ESP_OK) {
             ESP_LOGE(TAG, "SPI transaction failed: %s", esp_err_to_name(err));
-            continue;
+            
         }
 
-        const size_t received_bytes = transaction.trans_len / 8U;
+      /*  const size_t received_bytes = transaction.trans_len / 8U;
         ESP_LOGI(TAG, "Received %u bytes: %02X %02X %02X %02X",
                  (unsigned)received_bytes,
-                 rx_data[0], rx_data[1], rx_data[2], rx_data[3]);
-    }
+                 rx_data[0], rx_data[1], rx_data[2], rx_data[3]);*/
+        return ESP_OK;
 }
 
 esp_err_t spi_slave_app_start(void)
@@ -76,12 +77,12 @@ esp_err_t spi_slave_app_start(void)
         return err;
     }
 
-    if (xTaskCreate(spi_slave_task, "spi_slave", 3072, NULL, 5, NULL) !=
+    /*if (xTaskCreate(spi_slave_task, "spi_slave", 3072, NULL, 5, NULL) !=
         pdPASS) {
         spi_slave_free(SPI_SLAVE_HOST);
         ESP_LOGE(TAG, "Could not create SPI slave task");
         return ESP_ERR_NO_MEM;
-    }
+    }*/
 
     ESP_LOGI(TAG, "SPI2 slave ready (mode 0, 4-byte transactions)");
     return ESP_OK;

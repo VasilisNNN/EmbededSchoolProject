@@ -8,6 +8,7 @@ extern "C" {
 #endif
 
 esp_err_t spi_slave_app_start(void);
+esp_err_t spi_slave_app_update(int32_t data);
 
 #ifdef __cplusplus
 }
