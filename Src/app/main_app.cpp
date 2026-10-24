@@ -5,7 +5,7 @@
 
 static UART_HandleTypeDef huart1;
 static uint32_t adc_dma_value;
-static volatile uint8_t adc_conversion_ready;
+
 
 extern "C" void main_cpp()
 {
