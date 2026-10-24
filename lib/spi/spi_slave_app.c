@@ -17,33 +17,31 @@
 #define SPI_SLAVE_TRANSACTION_SIZE 4U
 
 static const char *TAG = "spi_slave";
-static DMA_ATTR uint8_t tx_data[SPI_SLAVE_TRANSACTION_SIZE] = {
-    0xA5U, 0x5AU, 0xC3U, 0x3CU};
+static DMA_ATTR uint8_t tx_data[SPI_SLAVE_TRANSACTION_SIZE];
 
 static DMA_ATTR uint8_t rx_data[SPI_SLAVE_TRANSACTION_SIZE];
 
 esp_err_t spi_slave_app_update(int32_t data)
 {
+    const int64_t temperature_milli_c = (int64_t)data * 10;
+    const uint32_t encoded_temperature = (uint32_t)temperature_milli_c;
+    tx_data[0] = (uint8_t)(encoded_temperature >> 24);
+    tx_data[1] = (uint8_t)(encoded_temperature >> 16);
+    tx_data[2] = (uint8_t)(encoded_temperature >> 8);
+    tx_data[3] = (uint8_t)encoded_temperature;
 
+    spi_slave_transaction_t transaction = {0};
+    transaction.length = SPI_SLAVE_TRANSACTION_SIZE * 8U;
+    transaction.tx_buffer = tx_data;
+    transaction.rx_buffer = rx_data;
 
-        tx_data[0] = data;
-        spi_slave_transaction_t transaction = {0};
-        transaction.length = SPI_SLAVE_TRANSACTION_SIZE * 8U;
-        transaction.tx_buffer = tx_data;
-        transaction.rx_buffer = rx_data;
+    const esp_err_t err =
+        spi_slave_transmit(SPI_SLAVE_HOST, &transaction, portMAX_DELAY);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "SPI transaction failed: %s", esp_err_to_name(err));
+    }
 
-        const esp_err_t err =
-            spi_slave_transmit(SPI_SLAVE_HOST, &transaction, portMAX_DELAY);
-        if (err != ESP_OK) {
-            ESP_LOGE(TAG, "SPI transaction failed: %s", esp_err_to_name(err));
-            
-        }
-
-      /*  const size_t received_bytes = transaction.trans_len / 8U;
-        ESP_LOGI(TAG, "Received %u bytes: %02X %02X %02X %02X",
-                 (unsigned)received_bytes,
-                 rx_data[0], rx_data[1], rx_data[2], rx_data[3]);*/
-        return ESP_OK;
+    return err;
 }
 
 esp_err_t spi_slave_app_start(void)

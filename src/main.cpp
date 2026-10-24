@@ -98,7 +98,10 @@ extern "C" void app_main()
         if (bmp280_i2c_read_data(&measurement) == BMP280_OK)
         {
 
-            spi_slave_app_update(measurement.temperature);
+            if (spi_slave_app_update(measurement.temperature) != ESP_OK)
+            {
+                ESP_LOGW(TAG, "SPI temperature transfer failed");
+            }
 
             ESP_LOGI(TAG, "BMP280/BME280: temperature=%ld centi-C, pressure=%lu Q24.8 Pa",
                      (long)measurement.temperature,
