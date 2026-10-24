@@ -1,6 +1,9 @@
+#include <stdint.h>
+#include <stdio.h>
 #include "stm32f4xx.h"
-#include "printf/usb_printf.h"
 
+namespace
+{
 constexpr uint32_t led_pin = 1U << 13U;
 constexpr uint32_t button_pin = 1U << 0U;
 constexpr uint32_t debounce_ms = 25U;
@@ -24,20 +27,11 @@ void configure_gpio()
                    (1U << (0U * 2U));
 }
 
-void configure_systick()
+void configure_cycle_counter()
 {
-    SysTick->CTRL = 0U;
-    SysTick->LOAD = (SystemCoreClock / 1000U) - 1U;
-    SysTick->VAL = 0U;
-    SysTick->CTRL = SysTick_CTRL_CLKSOURCE_Msk | SysTick_CTRL_ENABLE_Msk;
-}
-
-void wait_for_systick_tick()
-{
-    while ((SysTick->CTRL & SysTick_CTRL_COUNTFLAG_Msk) == 0U)
-    {
-        __NOP();
-    }
+    CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+    DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
+    DWT->CYCCNT = 0U;
 }
 
 uint32_t next_random_value(uint32_t value)
@@ -47,12 +41,15 @@ uint32_t next_random_value(uint32_t value)
     value ^= value << 5U;
     return value;
 }
+}
 
 extern "C" void main_cpp(void)
 {
     configure_gpio();
-    configure_systick();
+    configure_cycle_counter();
 
+    const uint32_t cycles_per_ms = SystemCoreClock / 1000U;
+    uint32_t last_cycle = DWT->CYCCNT;
     uint32_t random_state = 0xA341316CU;
     uint32_t toggle_interval_ms = 500U;
     uint32_t elapsed_ms = 0U;
@@ -63,19 +60,30 @@ extern "C" void main_cpp(void)
 
     while (1)
     {
-        // wait_for_systick_tick();
-        random_state = next_random_value(random_state);
-        printf("Button pressed");
+        const uint32_t current_cycle = DWT->CYCCNT;
+        const uint32_t elapsed_cycles = current_cycle - last_cycle;
+        const uint32_t elapsed_ticks = elapsed_cycles / cycles_per_ms;
+        if (elapsed_ticks == 0U)
+        {
+            __NOP();
+            continue;
+        }
+        last_cycle += elapsed_ticks * cycles_per_ms;
+
         const bool button_pressed = (GPIOA->IDR & button_pin) == 0U;
         if (button_pressed != button_candidate_pressed)
         {
-
             button_candidate_pressed = button_pressed;
             button_stable_ms = 0U;
         }
         else if (button_stable_ms < debounce_ms)
         {
-            ++button_stable_ms;
+            const uint32_t remaining_debounce_ms =
+                debounce_ms - button_stable_ms;
+            button_stable_ms +=
+                (elapsed_ticks < remaining_debounce_ms)
+                    ? elapsed_ticks
+                    : remaining_debounce_ms;
         }
 
         if ((button_stable_ms >= debounce_ms) &&
@@ -84,20 +92,29 @@ extern "C" void main_cpp(void)
             button_stable_pressed = button_candidate_pressed;
             if (button_stable_pressed)
             {
+                random_state = next_random_value(
+                    random_state ^ current_cycle) | 1U;
                 const uint32_t interval_range =
-                    maximum_toggle_interval_ms - minimum_toggle_interval_ms + 1U;
+                    maximum_toggle_interval_ms -
+                    minimum_toggle_interval_ms + 1U;
                 toggle_interval_ms = minimum_toggle_interval_ms +
                                      (random_state % interval_range);
                 elapsed_ms = 0U;
+                printf("Button pressed; LED toggle interval: %lu ms\r\n",
+                       static_cast<unsigned long>(toggle_interval_ms));
             }
         }
 
-        ++elapsed_ms;
+        elapsed_ms += elapsed_ticks;
         if (elapsed_ms >= toggle_interval_ms)
         {
-            elapsed_ms = 0U;
-            led_on = !led_on;
-            GPIOC->BSRR = led_on ? (led_pin << 16U) : led_pin;
+            const uint32_t toggle_count = elapsed_ms / toggle_interval_ms;
+            elapsed_ms %= toggle_interval_ms;
+            if ((toggle_count & 1U) != 0U)
+            {
+                led_on = !led_on;
+                GPIOC->BSRR = led_on ? (led_pin << 16U) : led_pin;
+            }
         }
     }
 }
