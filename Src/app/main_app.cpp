@@ -198,35 +198,12 @@ extern "C" void main_cpp()
         }
         else
         {
-            const HAL_StatusTypeDef spi_status = ReadESP_SPI(spi_data, sizeof(spi_data));
-            if (spi_status != HAL_OK)
-            {
-                PrintDisplayLine(oled, 5, "ESP: SPI error");
-                printf("ESP SPI read failed: status=%d error=0x%08lX\n",
-                       spi_status, (unsigned long)hspi1.ErrorCode);
-            }
-            else
-            {
-                const int32_t temperature_milli_c = DecodeTemperatureMilliC(spi_data);
-                if (temperature_milli_c < -40000 || temperature_milli_c > 85000)
-                {
-                    char raw_text[17];
-                    snprintf(raw_text, sizeof(raw_text), "RX:%02X %02X %02X %02X",
-                             spi_data[0], spi_data[1], spi_data[2], spi_data[3]);
-                    PrintDisplayLine(oled, 5, raw_text);
-                    printf("ESP SPI invalid temp: bytes=%02X %02X %02X %02X value=%ld mC\n",
-                           spi_data[0], spi_data[1], spi_data[2], spi_data[3],
-                           (long)temperature_milli_c);
-                }
-                else
-                {
-                    const STRING temperature_text = FormatTemperatureMilliC(temperature_milli_c);
-                    PrintDisplayLine(oled, 5, temperature_text.c_str());
-                    printf("ESP temperature: %s (%ld mC)\n",
-                           temperature_text.c_str(), (long)temperature_milli_c);
-                }
-            }
+            ReadESP_SPI(spi_data, sizeof(spi_data));
 
+            const int32_t temperature_milli_c = DecodeTemperatureMilliC(spi_data);
+
+            const STRING temperature_text = FormatTemperatureMilliC(temperature_milli_c);
+            PrintDisplayLine(oled, 5, temperature_text.c_str());
         }
 
         PrintDisplayLine(oled, 6, FomatString(data.humidity_tenths_percent, " %").c_str());
