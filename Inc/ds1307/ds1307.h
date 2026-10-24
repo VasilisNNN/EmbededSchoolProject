@@ -5,11 +5,6 @@
 #include <stdint.h>
 
 #include "i2c/i2c.h"
-#define DS1307_ADDRESS 0x68U
-#define DS1307_TIMEOUT_MS 100U
-#define DS1307_REG_SECONDS 0x00U
-#define DS1307_REG_COUNT 7U
-
 
 #ifdef __cplusplus
 extern "C" {

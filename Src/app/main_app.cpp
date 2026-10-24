@@ -98,6 +98,8 @@ extern "C" void main_cpp(void)
 
                 elapsed_ms = 0U;
 
+                GPIOC->BSRR = GPIO_BSRR_BR13; // LED OFF
+
                 printf("Button pressed; LED toggle interval: %lu ms\r\n",
                        static_cast<unsigned long>(toggle_interval_ms));
             }
@@ -117,10 +119,14 @@ extern "C" void main_cpp(void)
             {
                 led_on = !led_on;
 
-                // PC13 is active LOW
-                GPIOC->BSRR = led_on
-                                  ? (1UL << (13U + 16U)) // LED ON
-                                  : (1UL << 13U);        // LED OFF
+                if (led_on)
+                {
+                    GPIOC->BSRR = GPIO_BSRR_BR13; // PC13 LOW
+                }
+                else
+                {
+                    GPIOC->BSRR = GPIO_BSRR_BS13; // PC13 HIGH
+                }
             }
         }
     }

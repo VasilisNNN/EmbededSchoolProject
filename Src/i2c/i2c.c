@@ -110,3 +110,34 @@ HAL_StatusTypeDef I2C_ReadRegister(I2C_HandleTypeDef *hi2c,
   return HAL_I2C_Mem_Read(hi2c, device_address << 1, reg,
                           I2C_MEMADD_SIZE_8BIT, data, size, timeout);
 }
+
+void HAL_I2C_MspInit(I2C_HandleTypeDef *hi2c)
+{
+  GPIO_InitTypeDef gpio_init = {0};
+
+  if (hi2c->Instance != I2C1)
+  {
+    return;
+  }
+
+  __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_I2C1_CLK_ENABLE();
+
+  gpio_init.Pin = GPIO_PIN_6 | GPIO_PIN_7;
+  gpio_init.Mode = GPIO_MODE_AF_OD;
+  gpio_init.Pull = GPIO_PULLUP;
+  gpio_init.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+  gpio_init.Alternate = GPIO_AF4_I2C1;
+  HAL_GPIO_Init(GPIOB, &gpio_init);
+}
+
+void HAL_I2C_MspDeInit(I2C_HandleTypeDef *hi2c)
+{
+  if (hi2c->Instance != I2C1)
+  {
+    return;
+  }
+
+  __HAL_RCC_I2C1_CLK_DISABLE();
+  HAL_GPIO_DeInit(GPIOB, GPIO_PIN_6 | GPIO_PIN_7);
+}
