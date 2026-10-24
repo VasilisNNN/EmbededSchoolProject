@@ -8,6 +8,8 @@
 #define I2C_TIMEOUT_MS 100
 #define I2C_SPEED_HZ 100000U
 
+#define BME280_ADDRESS_PRIMARY 0x76
+#define BME280_ADDRESS_SECONDARY 0x77
 #define DS1307_ADDRESS 0x68
 #define DS1307_REG_START 0x00
 #define DS1307_REG_COUNT 8
@@ -55,7 +57,7 @@ extern "C" void main_cpp()
     if (status != HAL_OK)
     {
         printf("[I2C] Scan failed (status=%d)\r\n", (int)status);
-        return;
+       
     }
 
     printf("[I2C] Scan: %u device(s) found\r\n", (unsigned)found_count);
@@ -68,7 +70,17 @@ extern "C" void main_cpp()
     if (status != HAL_OK)
     {
         printf("[I2C] DS1307 not found (status=%d)\r\n", (int)status);
-        return;
+       
+    }
+
+    status = I2C_Probe(&hi2c1, BME280_ADDRESS_PRIMARY, I2C_TIMEOUT_MS);
+    if (status != HAL_OK)
+    {
+        status = I2C_Probe(&hi2c1, BME280_ADDRESS_SECONDARY, I2C_TIMEOUT_MS);
+    }
+    if (status != HAL_OK)
+    {
+        printf("[I2C] BME280 not found (status=%d)\r\n", (int)status);
     }
 
     while (1)
