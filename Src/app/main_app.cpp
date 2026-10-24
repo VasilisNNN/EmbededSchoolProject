@@ -89,6 +89,9 @@ extern "C" void main_cpp()
 
         status = I2C_ReadRegister(&hi2c1, DS1307_ADDRESS, DS1307_REG_START,
                                   regs, sizeof(regs), I2C_TIMEOUT_MS);
+        
+        I2C_Transmit(&hi2c1, DS1307_ADDRESS,
+                                  regs, sizeof(regs), I2C_TIMEOUT_MS);
         if (status == HAL_OK)
         {
             printf("[I2C] DS1307:");
