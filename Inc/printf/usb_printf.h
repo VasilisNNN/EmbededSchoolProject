@@ -1,0 +1,6 @@
+#ifndef USB_PRINTF_H
+#define USB_PRINTF_H
+
+#define UART_PRINTF_TX_TIMEOUT_MS 1000U
+
+#endif /* USB_PRINTF_H */

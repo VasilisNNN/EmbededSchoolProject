@@ -40,6 +40,7 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN PV */
+static DMA_HandleTypeDef hdma_adc1;
 
 /* USER CODE END PV */
 
@@ -76,72 +77,60 @@ void HAL_MspInit(void)
   /* USER CODE END MspInit 1 */
 }
 
-/**
-  * @brief USART MSP Initialization
-  * This function configures the hardware resources used in this example
-  * @param husart: USART handle pointer
-  * @retval None
-  */
-void HAL_USART_MspInit(USART_HandleTypeDef* husart)
+void HAL_ADC_MspInit(ADC_HandleTypeDef *hadc)
 {
-  GPIO_InitTypeDef GPIO_InitStruct = {0};
-  if(husart->Instance==USART1)
+  GPIO_InitTypeDef gpio_init = {0};
+
+  if (hadc->Instance != ADC1)
   {
-    /* USER CODE BEGIN USART1_MspInit 0 */
-
-    /* USER CODE END USART1_MspInit 0 */
-    /* Peripheral clock enable */
-    __HAL_RCC_USART1_CLK_ENABLE();
-
-    __HAL_RCC_GPIOA_CLK_ENABLE();
-    /**USART1 GPIO Configuration
-    PA8     ------> USART1_CK
-    PA9     ------> USART1_TX
-    PA10     ------> USART1_RX
-    */
-    GPIO_InitStruct.Pin = GPIO_PIN_8|GPIO_PIN_9|GPIO_PIN_10;
-    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-    GPIO_InitStruct.Alternate = GPIO_AF7_USART1;
-    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-    /* USER CODE BEGIN USART1_MspInit 1 */
-
-    /* USER CODE END USART1_MspInit 1 */
-
+    return;
   }
 
+  __HAL_RCC_ADC1_CLK_ENABLE();
+  __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_DMA2_CLK_ENABLE();
+
+  gpio_init.Pin = GPIO_PIN_0;
+  gpio_init.Mode = GPIO_MODE_ANALOG;
+  gpio_init.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOA, &gpio_init);
+
+  hdma_adc1.Instance = DMA2_Stream0;
+  hdma_adc1.Init.Channel = DMA_CHANNEL_0;
+  hdma_adc1.Init.Direction = DMA_PERIPH_TO_MEMORY;
+  hdma_adc1.Init.PeriphInc = DMA_PINC_DISABLE;
+  hdma_adc1.Init.MemInc = DMA_MINC_DISABLE;
+  hdma_adc1.Init.PeriphDataAlignment = DMA_PDATAALIGN_HALFWORD;
+  hdma_adc1.Init.MemDataAlignment = DMA_MDATAALIGN_HALFWORD;
+  hdma_adc1.Init.Mode = DMA_NORMAL;
+  hdma_adc1.Init.Priority = DMA_PRIORITY_LOW;
+  hdma_adc1.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
+  if (HAL_DMA_Init(&hdma_adc1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  __HAL_LINKDMA(hadc, DMA_Handle, hdma_adc1);
+
+  HAL_NVIC_SetPriority(DMA2_Stream0_IRQn, 1, 0);
+  HAL_NVIC_EnableIRQ(DMA2_Stream0_IRQn);
 }
 
-/**
-  * @brief USART MSP De-Initialization
-  * This function freeze the hardware resources used in this example
-  * @param husart: USART handle pointer
-  * @retval None
-  */
-void HAL_USART_MspDeInit(USART_HandleTypeDef* husart)
+void HAL_ADC_MspDeInit(ADC_HandleTypeDef *hadc)
 {
-  if(husart->Instance==USART1)
+  if (hadc->Instance != ADC1)
   {
-    /* USER CODE BEGIN USART1_MspDeInit 0 */
-
-    /* USER CODE END USART1_MspDeInit 0 */
-    /* Peripheral clock disable */
-    __HAL_RCC_USART1_CLK_DISABLE();
-
-    /**USART1 GPIO Configuration
-    PA8     ------> USART1_CK
-    PA9     ------> USART1_TX
-    PA10     ------> USART1_RX
-    */
-    HAL_GPIO_DeInit(GPIOA, GPIO_PIN_8|GPIO_PIN_9|GPIO_PIN_10);
-
-    /* USER CODE BEGIN USART1_MspDeInit 1 */
-
-    /* USER CODE END USART1_MspDeInit 1 */
+    return;
   }
 
+  __HAL_RCC_ADC1_CLK_DISABLE();
+  HAL_GPIO_DeInit(GPIOA, GPIO_PIN_0);
+  HAL_DMA_DeInit(hadc->DMA_Handle);
+  HAL_NVIC_DisableIRQ(DMA2_Stream0_IRQn);
+}
+
+void DMA2_Stream0_IRQHandler(void)
+{
+  HAL_DMA_IRQHandler(&hdma_adc1);
 }
 
 /* USER CODE BEGIN 1 */

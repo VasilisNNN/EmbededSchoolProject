@@ -14,6 +14,9 @@ HAL_StatusTypeDef UART_Transmit(UART_HandleTypeDef *huart,
                                 uint8_t *data,
                                 uint16_t size,
                                 uint32_t timeout);
+HAL_StatusTypeDef UART_ConsoleWrite_DMA(uint8_t *data,
+                                        uint16_t size,
+                                        uint32_t timeout);
 HAL_StatusTypeDef UART_Receive(UART_HandleTypeDef *huart,
                                uint8_t *data,
                                uint16_t size,
@@ -31,10 +34,6 @@ void UART_RegisterDMACallbacks(UART_DMA_Callback tx_complete,
 HAL_StatusTypeDef UART_Transmit_DMA(UART_HandleTypeDef *huart,
                                     uint8_t *data,
                                     uint16_t size);
-/* Sends bytes through USART1 TX DMA and waits for completion. */
-HAL_StatusTypeDef UART_Monitor_Write_DMA(uint8_t *data,
-                                         uint16_t size,
-                                         uint32_t timeout);
 /* Запускає прийом size байт через DMA */
 HAL_StatusTypeDef UART_Receive_DMA(UART_HandleTypeDef *huart,
                                    uint8_t *data,

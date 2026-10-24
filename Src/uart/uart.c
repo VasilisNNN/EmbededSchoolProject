@@ -1,6 +1,9 @@
 #include "uart/uart.h"
 #include "main.h"
 
+static UART_HandleTypeDef *uart1_handle = NULL;
+static volatile uint8_t tx_dma_complete = 0;
+
 HAL_StatusTypeDef UART_Init(UART_HandleTypeDef *huart,
                             USART_TypeDef *instance,
                             uint32_t baud_rate)
@@ -35,6 +38,50 @@ HAL_StatusTypeDef UART_Transmit(UART_HandleTypeDef *huart,
   return HAL_UART_Transmit(huart, data, size, timeout);
 }
 
+HAL_StatusTypeDef UART_ConsoleWrite_DMA(uint8_t *data,
+                                        uint16_t size,
+                                        uint32_t timeout)
+{
+  if ((uart1_handle == NULL) || (data == NULL) || (size == 0))
+  {
+    return HAL_ERROR;
+  }
+
+  uint32_t start_tick = HAL_GetTick();
+  HAL_StatusTypeDef status;
+  do
+  {
+    tx_dma_complete = 0;
+    status = UART_Transmit_DMA(uart1_handle, data, size);
+    if (status != HAL_BUSY)
+    {
+      break;
+    }
+    if ((timeout != HAL_MAX_DELAY) &&
+        ((HAL_GetTick() - start_tick) >= timeout))
+    {
+      return HAL_TIMEOUT;
+    }
+  } while (1);
+
+  if (status != HAL_OK)
+  {
+    return status;
+  }
+
+  while (!tx_dma_complete)
+  {
+    if ((timeout != HAL_MAX_DELAY) &&
+        ((HAL_GetTick() - start_tick) >= timeout))
+    {
+      status = HAL_UART_AbortTransmit(uart1_handle);
+      return (status == HAL_OK) ? HAL_TIMEOUT : status;
+    }
+  }
+
+  return HAL_OK;
+}
+
 HAL_StatusTypeDef UART_Receive(UART_HandleTypeDef *huart,
                                uint8_t *data,
                                uint16_t size,
@@ -50,10 +97,8 @@ HAL_StatusTypeDef UART_Receive(UART_HandleTypeDef *huart,
 
 static DMA_HandleTypeDef hdma_usart1_tx;
 static DMA_HandleTypeDef hdma_usart1_rx;
-static UART_HandleTypeDef *uart1_handle = NULL;
 static UART_DMA_Callback tx_complete_cb = NULL;
 static UART_DMA_Callback rx_complete_cb = NULL;
-static volatile uint8_t tx_dma_complete = 0;
 
 /* Налаштовує DMA-потоки TX/RX для USART1 і вмикає їхні переривання */
 static HAL_StatusTypeDef UART_DMA_Setup(UART_HandleTypeDef *huart)
@@ -121,50 +166,6 @@ HAL_StatusTypeDef UART_Transmit_DMA(UART_HandleTypeDef *huart,
   }
 
   return HAL_UART_Transmit_DMA(huart, data, size);
-}
-
-HAL_StatusTypeDef UART_Monitor_Write_DMA(uint8_t *data,
-                                         uint16_t size,
-                                         uint32_t timeout)
-{
-  if ((uart1_handle == NULL) || (data == NULL) || (size == 0))
-  {
-    return HAL_ERROR;
-  }
-
-  uint32_t start_tick = HAL_GetTick();
-  HAL_StatusTypeDef status;
-  do
-  {
-    tx_dma_complete = 0;
-    status = UART_Transmit_DMA(uart1_handle, data, size);
-    if (status != HAL_BUSY)
-    {
-      break;
-    }
-    if ((timeout != HAL_MAX_DELAY) &&
-        ((HAL_GetTick() - start_tick) >= timeout))
-    {
-      return HAL_TIMEOUT;
-    }
-  } while (1);
-
-  if (status != HAL_OK)
-  {
-    return status;
-  }
-
-  while (!tx_dma_complete)
-  {
-    if ((timeout != HAL_MAX_DELAY) &&
-        ((HAL_GetTick() - start_tick) >= timeout))
-    {
-      status = HAL_UART_AbortTransmit(uart1_handle);
-      return (status == HAL_OK) ? HAL_TIMEOUT : status;
-    }
-  }
-
-  return HAL_OK;
 }
 
 /* Неблокуючий прийом через DMA з перевіркою аргументів */

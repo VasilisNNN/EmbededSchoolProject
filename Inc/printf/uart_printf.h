@@ -1,6 +1,0 @@
-#ifndef UART_PRINTF_H
-#define UART_PRINTF_H
-
-#define UART_PRINTF_TX_TIMEOUT_MS 1000U
-
-#endif /* UART_PRINTF_H */
