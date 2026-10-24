@@ -7,14 +7,6 @@ static UART_HandleTypeDef huart1;
 static uint32_t adc_dma_value;
 static volatile uint8_t adc_conversion_ready;
 
-extern "C" void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
-{
-    if (hadc == &hadc1)
-    {
-        adc_conversion_ready = 1;
-    }
-}
-
 extern "C" void main_cpp()
 {
     HAL_StatusTypeDef status = UART_Init(&huart1, USART1, 115200);
@@ -25,20 +17,15 @@ extern "C" void main_cpp()
     }
 
     HAL_ADC_Start_DMA(&hadc1, &adc_dma_value, 1);
- 
 
     while (1)
     {
-        if (adc_conversion_ready)
-        {
-            adc_conversion_ready = 0;
-            const uint32_t millivolts = (adc_dma_value * 3300U) / 4095U;
-            printf("ADC: %lu\r\n",
-                   (unsigned long)adc_dma_value);
 
-            HAL_Delay(100U);
-            HAL_ADC_Start_DMA(&hadc1, &adc_dma_value, 1);
-            
-        }
+        const uint32_t millivolts = (adc_dma_value * 3300U) / 4095U;
+        printf("ADC: %lu\r\n",
+               (unsigned long)adc_dma_value);
+
+        HAL_Delay(100U);
+        HAL_ADC_Start_DMA(&hadc1, &adc_dma_value, 1);
     }
 }
