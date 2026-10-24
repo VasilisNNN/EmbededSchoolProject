@@ -62,7 +62,7 @@ extern "C" void main_cpp(void)
         if (elapsed_ticks == 0U)
         {
             __WFI();
-            continue;
+            // continue;
         }
 
         last_tick = current_tick;
@@ -78,8 +78,7 @@ extern "C" void main_cpp(void)
         }
 
         // Button pressed
-        if ((button_stable_pressed != button_candidate_pressed) &&
-            ((current_tick - button_candidate_since_ms) >= debounce_ms))
+        if ((button_stable_pressed != button_candidate_pressed))
         {
             button_stable_pressed = button_candidate_pressed;
 
@@ -98,18 +97,17 @@ extern "C" void main_cpp(void)
 
                 elapsed_ms = 0U;
 
-                GPIOC->BSRR = GPIO_BSRR_BR13; // LED OFF
-
                 printf("Button pressed; LED toggle interval: %lu ms\r\n",
                        static_cast<unsigned long>(toggle_interval_ms));
             }
         }
 
         // LED timing
-        elapsed_ms += elapsed_ticks;
+        elapsed_ms += 1;
 
         if (elapsed_ms >= toggle_interval_ms)
         {
+
             const uint32_t toggle_count =
                 elapsed_ms / toggle_interval_ms;
 
@@ -118,14 +116,13 @@ extern "C" void main_cpp(void)
             if ((toggle_count & 1U) != 0U)
             {
                 led_on = !led_on;
-
                 if (led_on)
                 {
-                    GPIOC->BSRR = GPIO_BSRR_BR13; // PC13 LOW
+                    GPIOC->BSRR = (1UL << (13U + 16U)); // LED ON
                 }
                 else
                 {
-                    GPIOC->BSRR = GPIO_BSRR_BS13; // PC13 HIGH
+                    GPIOC->BSRR = (1UL << 13U); // LED OFF
                 }
             }
         }
