@@ -1,14 +1,13 @@
 # Драйвери SPI slave, UART, I2C, OLED, BMP280 і DS1307 для ESP32-S3
 
-Проєкт містить модулі UART, I2C і SPI slave для ESP32-S3 (ESP-IDF + PlatformIO), а також OLED-драйвер для SSD1306. Поточний приклад у `src/main.cpp` запускає SPI slave та ініціалізує I2C/OLED 128x64.
+Проєкт для ESP32-S3 (ESP-IDF + PlatformIO) містить модулі UART, I2C, SPI master/slave та OLED-драйвер SSD1306. Поточний приклад у `src/main.cpp` читає температуру з STM32 через SPI master.
 
-## SPI slave
+## SPI з'єднання зі STM32
 
-- ESP32-S3 працює як slave через ESP-IDF `driver/spi_slave.h` на SPI2, режим SPI 0.
-- Піни ESP32-S3: CS GPIO 10, SCLK GPIO 12, MOSI GPIO 11, MISO GPIO 13. З'єднайте їх з однойменними лініями SPI master (CS до CS, SCLK до SCLK, master MOSI до slave MOSI, master MISO до slave MISO) і з'єднайте GND.
-- Кожна транзакція має рівно 4 байти. ESP32 передає температуру BME280/BMP280 як знакове 32-бітове ціле число big-endian у тисячних частках °C. Драйвер датчика повертає соті частки °C, тому перед передачею значення множиться на 10. Наприклад, `23.45 °C` передається як `23450`, тобто байти `00 00 5B 9A`.
-- Передача SPI повнодуплексна: master має надіслати чотири байти й одночасно зчитати всі чотири байти температури за одну транзакцію. CS має бути активним увесь час транзакції. Master має декодувати ті самі байти як signed int32 big-endian і поділити на 1000 для значення в °C.
-- Код slave: `lib/spi/spi_slave_app.c` та `lib/spi/spi_slave_app.h`.
+- ESP32-S3 працює як SPI master (ESP-IDF `driver/spi_master.h`, SPI2, mode 0); STM32F411 працює як slave (SPI2, mode 0).
+- Піни ESP32-S3: CS GPIO 10, SCLK GPIO 12, MOSI GPIO 11, MISO GPIO 13. З'єднайте CS з PB12/NSS STM32, SCLK з PB13, MOSI з PB15, MISO з PB14 та GND з GND.
+- Кожен запит — одна транзакція з двох нульових байтів від ESP32. STM32 одночасно повертає знакове 16-бітове число big-endian у десятих частках °C (наприклад, `20.0 °C` — `00 C8`, `-5.2 °C` — `FF CC`). CS має залишатися активним протягом усіх 16 тактів.
+- ESP32 не надсилає адресу BME280 для цього протоколу; вона зчитує безпосередньо актуальну температуру, яку передає STM32.
 
 ## Модуль I2C
 

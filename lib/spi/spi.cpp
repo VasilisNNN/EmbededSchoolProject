@@ -36,7 +36,7 @@ esp_err_t spi_initialize(spi_device_handle_t *spi)
     ret = spi_bus_initialize(SPI2_HOST, &buscfg, SPI_DMA_DISABLED);
     ESP_ERROR_CHECK(ret);
 
-    // 2. Конфігурація пристрою (Slave)
+    // 2. Налаштування ESP32 як SPI master для STM32 slave
     spi_device_interface_config_t devcfg = {};
     devcfg.clock_speed_hz = 1 * 1000 * 1000;     // Швидкість 1 МГц
     devcfg.mode = 0;                             // SPI Mode 0 (CPOL=0, CPHA=0)
@@ -108,3 +108,34 @@ esp_err_t spi_write_register(spi_device_handle_t spi, uint8_t reg, uint8_t value
     return ret;
 }
 
+esp_err_t spi_read_temperature_tenths_c(spi_device_handle_t spi,
+                                        int16_t *temperature_tenths_c)
+{
+    if (spi == nullptr || temperature_tenths_c == nullptr) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    uint8_t tx_buf[2] = {};
+    uint8_t rx_buf[2] = {};
+
+    spi_transaction_t transaction = {};
+    transaction.length = sizeof(tx_buf) * 8U;
+    transaction.tx_buffer = tx_buf;
+    transaction.rx_buffer = rx_buf;
+
+    const esp_err_t ret = spi_device_transmit(spi, &transaction);
+    if (ret != ESP_OK) {
+        return ret;
+    }
+
+    const uint16_t raw =
+        (static_cast<uint16_t>(rx_buf[0]) << 8) | rx_buf[1];
+    const int32_t signed_raw =
+        (raw & 0x8000U) != 0U ? static_cast<int32_t>(raw) - 0x10000
+                              : static_cast<int32_t>(raw);
+    *temperature_tenths_c = static_cast<int16_t>(signed_raw);
+
+    ESP_LOGI(TAG, "STM32 temperature bytes: %02X %02X (%d tenths C)",
+             rx_buf[0], rx_buf[1], static_cast<int>(*temperature_tenths_c));
+    return ESP_OK;
+}
