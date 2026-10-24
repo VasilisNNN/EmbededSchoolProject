@@ -1,4 +1,5 @@
 #include "spi_slave/bme280_spi_emulator.h"
+#include "spi_slave/spi_slave.h"
 
 /* У команді SPI старший біт задає операцію, адреса займає 7 бітів. */
 #define BME280_REG_INDEX(address) ((uint8_t)((address) & 0x7FU))
@@ -247,6 +248,10 @@ void BME280_SPI_Emulator_IRQHandler(void)
   {
     HAL_SPI_IRQHandler(active_emulator->hspi);
   }
+  else
+  {
+    SPI_Slave_IRQHandler();
+  }
 }
 
 void BME280_SPI_Emulator_NssChanged(void)
@@ -261,13 +266,14 @@ void BME280_SPI_Emulator_NssChanged(void)
 
 void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi)
 {
-  if ((active_emulator == NULL) || (active_emulator->hspi != hspi))
+  if ((active_emulator != NULL) && (active_emulator->hspi == hspi))
   {
+    BME280_SPI_Emulator_ProcessByte(active_emulator, active_emulator->rx_byte);
+    active_emulator->last_status = BME280_SPI_Emulator_Arm(active_emulator);
     return;
   }
 
-  BME280_SPI_Emulator_ProcessByte(active_emulator, active_emulator->rx_byte);
-  active_emulator->last_status = BME280_SPI_Emulator_Arm(active_emulator);
+  SPI_Slave_OnTransmitReceiveComplete(hspi);
 }
 
 void HAL_SPI_ErrorCallback(SPI_HandleTypeDef *hspi)
@@ -275,5 +281,8 @@ void HAL_SPI_ErrorCallback(SPI_HandleTypeDef *hspi)
   if ((active_emulator != NULL) && (active_emulator->hspi == hspi))
   {
     active_emulator->last_status = HAL_ERROR;
+    return;
   }
+
+  SPI_Slave_OnError(hspi);
 }

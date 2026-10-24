@@ -1,111 +1,166 @@
-#include <stdint.h>
 #include <stdio.h>
+
 #include "main.h"
 #include "i2c/i2c.h"
+#include "oled/oled.h"
+#include "ds1307/ds1307.h"
+#include "bme280/bme280.h"
 #include "spi_slave/spi_slave.h"
-#include "spi_slave/bme280_spi_emulator.h"
+#include "main_app.h"
 
-#define I2C_TIMEOUT_MS 100
+
 #define I2C_SPEED_HZ 100000U
-
-#define BME280_ADDRESS_PRIMARY 0x76
-#define BME280_ADDRESS_SECONDARY 0x77
-#define DS1307_ADDRESS 0x68
-#define DS1307_REG_START 0x00
-#define DS1307_REG_COUNT 8
+#define DISPLAY_UPDATE_INTERVAL_MS 1000U
 
 static I2C_HandleTypeDef hi2c1;
 static SPI_HandleTypeDef hspi2;
-static BME280_SPI_Emulator_HandleTypeDef bme280_spi;
+
+static void PrintDisplayLine(OLED_HandleTypeDef *oled, uint8_t row, const char *text)
+{
+    OLED_Print(oled, row, 1, false, text);
+}
+
+
+STRING FomatString(int variable, STRING end)
+{
+
+    STRING result = " ";
+   
+    if (variable < 0)
+    {
+        result += "-";
+    }
+
+    result += std::to_string(variable / 10);
+    result += ".";
+    result += std::to_string(variable % 10);
+    result += end;
+    return result;
+}
 
 extern "C" void main_cpp()
 {
-    HAL_StatusTypeDef status = SPI_Slave_Init(&hspi2, SPI2);
-    if (status == HAL_OK)
-    {
-        status = BME280_SPI_Emulator_Init(&bme280_spi, &hspi2);
-    }
-    if (status == HAL_OK)
-    {
-        status = BME280_SPI_Emulator_Start(&bme280_spi);
-    }
 
-    if (status == HAL_OK)
+    if (I2C_Init(&hi2c1, I2C1, I2C_SPEED_HZ) != HAL_OK)
     {
-        printf("[SPI] BME280 emulator started on SPI2 (chip ID=0x%02X)\r\n",
-               BME280_SPI_EMULATOR_CHIP_ID);
-    }
-    else
-    {
-        printf("[SPI] BME280 emulator startup failed (status=%d)\r\n",
-               (int)status);
-    }
-
-    status = I2C_Init(&hi2c1, I2C1, I2C_SPEED_HZ);
-    if (status != HAL_OK)
-    {
-        printf("[I2C] I2C1 initialization failed (status=%d)\r\n", (int)status);
+        printf("I2C error\n");
         return;
     }
 
-    HAL_Delay(500);
+    OLED_SettingsTypeDef settings = OLED_SETTINGS_128X64_DEFAULT();
+    OLED_HandleTypeDef *oled = NULL;
 
-    uint8_t found[16];
-    uint8_t found_count = 0;
-
-    status = I2C_Scan(&hi2c1, found, sizeof(found), &found_count, 10);
-    if (status != HAL_OK)
+    if (OLED_Init(&hi2c1, &settings, &oled) != HAL_OK)
     {
-        printf("[I2C] Scan failed (status=%d)\r\n", (int)status);
-       
+        printf("OLED error\n");
+        return;
     }
 
-    printf("[I2C] Scan: %u device(s) found\r\n", (unsigned)found_count);
-    for (uint8_t i = 0; (i < found_count) && (i < sizeof(found)); i++)
+    DS1307_HandleTypeDef *rtc = NULL;
+    DS1307_Init(&hi2c1, &rtc);
+
+    BME280_HandleTypeDef *bme280 = NULL;
+    BME280_Init(&hi2c1, &bme280);
+
+    BME280_MeasurementTypeDef initial_measurement;
+    HAL_StatusTypeDef initial_measurement_status =
+        BME280_Read(bme280, &initial_measurement);
+    if (initial_measurement_status == HAL_OK)
     {
-        printf("[I2C] Found device at 0x%02X\r\n", found[i]);
+        SPI_Slave_SetTemperature(initial_measurement.temperature_tenths_c);
     }
 
-    status = I2C_Probe(&hi2c1, DS1307_ADDRESS, I2C_TIMEOUT_MS);
-    if (status != HAL_OK)
+    if (SPI_Slave_Init(&hspi2, SPI2) != HAL_OK)
     {
-        printf("[I2C] DS1307 not found (status=%d)\r\n", (int)status);
-       
+        printf("[SPI] SPI2 slave initialization failed\n");
+        return;
+    }
+    if (SPI_Slave_StartTemperatureStream(&hspi2) != HAL_OK)
+    {
+        printf("[SPI] Temperature stream start failed\n");
+        return;
+    }
+    if (initial_measurement_status != HAL_OK)
+    {
+        printf("[BME280] Initial measurement failed (status=%d)\n",
+               (int)initial_measurement_status);
     }
 
-    status = I2C_Probe(&hi2c1, BME280_ADDRESS_PRIMARY, I2C_TIMEOUT_MS);
-    if (status != HAL_OK)
-    {
-        status = I2C_Probe(&hi2c1, BME280_ADDRESS_SECONDARY, I2C_TIMEOUT_MS);
-    }
-    if (status != HAL_OK)
-    {
-        printf("[I2C] BME280 not found (status=%d)\r\n", (int)status);
-    }
+    DS1307_DateTimeTypeDef initialTime = {2026, 10, 20, 3, 20, 56, 0};
+    DS1307_SetDateTime(rtc, &initialTime);
+
 
     while (1)
     {
-        uint8_t regs[DS1307_REG_COUNT];
+        DS1307_DateTimeTypeDef date;
+        DS1307_GetDateTime(rtc, &date);
 
-        status = I2C_ReadRegister(&hi2c1, DS1307_ADDRESS, DS1307_REG_START,
-                                  regs, sizeof(regs), I2C_TIMEOUT_MS);
-        
-        I2C_Transmit(&hi2c1, DS1307_ADDRESS,
-                                  regs, sizeof(regs), I2C_TIMEOUT_MS);
-        if (status == HAL_OK)
+        BME280_MeasurementTypeDef data;
+        HAL_StatusTypeDef measurement_status = BME280_Read(bme280, &data);
+
+        if (measurement_status == HAL_OK)
         {
-            printf("[I2C] DS1307:");
-            for (uint8_t i = 0; i < sizeof(regs); i++)
+            if (SPI_Slave_SetTemperature(data.temperature_tenths_c) != HAL_OK)
             {
-                printf(" %02X", regs[i]);
+                printf("[SPI] Temperature update failed\n");
             }
-            printf("\r\n");
         }
         else
         {
-            printf("[I2C] Register read failed (status=%d)\r\n", (int)status);
+            printf("[BME280] Measurement failed (status=%d)\n",
+                   (int)measurement_status);
         }
 
-        HAL_Delay(1000);
+        HAL_StatusTypeDef spi_status =
+            SPI_Slave_GetTemperatureStreamStatus();
+        if (spi_status != HAL_OK)
+        {
+            printf("[SPI] Temperature stream failed (status=%d)\n",
+                   (int)spi_status);
+        }
+
+        STRING day = std::to_string(date.day);
+        STRING month = std::to_string(date.month);
+        STRING year = std::to_string(date.year);
+
+        STRING hour = std::to_string(date.hour);
+        STRING minute = std::to_string(date.minute);
+        STRING second = std::to_string(date.second);
+
+        if (date.day < 10)
+            day = "0" + day;
+        if (date.month < 10)
+            month = "0" + month;
+        if (date.hour < 10)
+            hour = "0" + hour;
+        if (date.minute < 10)
+            minute = "0" + minute;
+        if (date.second < 10)
+            second = "0" + second;
+
+        STRING dateText = day + "/" + month + "/" + year;
+        STRING timeText = hour + ":" + minute + ":" + second;
+
+        OLED_Clear(oled);
+
+        PrintDisplayLine(oled, 0, "Clock / Weather");
+        PrintDisplayLine(oled, 1, dateText.c_str());
+        OLED_Print(oled, 2, 2, false, timeText.c_str());
+
+        if (measurement_status == HAL_OK)
+        {
+            PrintDisplayLine(oled, 5, FomatString(data.temperature_tenths_c, " C").c_str());
+            PrintDisplayLine(oled, 6, FomatString(data.humidity_tenths_percent, " %").c_str());
+            PrintDisplayLine(oled, 7, FomatString(data.pressure_tenths_hpa, " hPa").c_str());
+        }
+        else
+        {
+            PrintDisplayLine(oled, 5, "BME280 read error");
+        }
+
+        printf("Date: %s Time: %s\n",
+               dateText.c_str(), timeText.c_str());
+
+        HAL_Delay(DISPLAY_UPDATE_INTERVAL_MS);
     }
 }

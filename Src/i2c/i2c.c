@@ -111,7 +111,7 @@ HAL_StatusTypeDef I2C_ReadRegister(I2C_HandleTypeDef *hi2c,
                           I2C_MEMADD_SIZE_8BIT, data, size, timeout);
 }
 
-void HAL_I2C_MspInit(I2C_HandleTypeDef *hi2c)
+void HAL_I2C_Msp_Init(I2C_HandleTypeDef *hi2c)
 {
   GPIO_InitTypeDef gpio_init = {0};
 
@@ -131,7 +131,7 @@ void HAL_I2C_MspInit(I2C_HandleTypeDef *hi2c)
   HAL_GPIO_Init(GPIOB, &gpio_init);
 }
 
-void HAL_I2C_MspDeInit(I2C_HandleTypeDef *hi2c)
+void HAL_I2C_Msp_DeInit(I2C_HandleTypeDef *hi2c)
 {
   if (hi2c->Instance != I2C1)
   {

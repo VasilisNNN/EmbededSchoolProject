@@ -218,15 +218,6 @@ void SPI2_IRQHandler(void)
   BME280_SPI_Emulator_IRQHandler();
 }
 
-void EXTI15_10_IRQHandler(void)
-{
-  if (__HAL_GPIO_EXTI_GET_IT(GPIO_PIN_12) != RESET)
-  {
-    __HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_12);
-    BME280_SPI_Emulator_NssChanged();
-  }
-}
-
 /* USER CODE BEGIN 1 */
 
 /* USER CODE END 1 */

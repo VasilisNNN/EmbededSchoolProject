@@ -89,7 +89,7 @@ HAL_StatusTypeDef SPI_Master_TransmitReceive(SPI_HandleTypeDef *hspi,
   return HAL_SPI_TransmitReceive(hspi, tx_data, rx_data, size, timeout);
 }
 
-void HAL_SPI_MspInit(SPI_HandleTypeDef *hspi)
+void HAL_SPI_Msp_Init(SPI_HandleTypeDef *hspi)
 {
   GPIO_InitTypeDef gpio_init = {0};
 
@@ -122,7 +122,7 @@ void HAL_SPI_MspInit(SPI_HandleTypeDef *hspi)
   }
 }
 
-void HAL_SPI_MspDeInit(SPI_HandleTypeDef *hspi)
+void HAL_SPI_Msp_DeInit(SPI_HandleTypeDef *hspi)
 {
   if (hspi == NULL)
   {

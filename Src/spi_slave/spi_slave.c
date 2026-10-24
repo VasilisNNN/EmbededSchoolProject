@@ -1,5 +1,18 @@
 #include "spi_slave/spi_slave.h"
 
+static SPI_HandleTypeDef *temperature_stream_spi;
+static volatile int16_t latest_temperature_tenths_c;
+static uint8_t temperature_tx[2];
+static uint8_t temperature_rx[2];
+static volatile HAL_StatusTypeDef temperature_stream_status = HAL_OK;
+
+static void SPI_Slave_LoadTemperature(void)
+{
+  uint16_t temperature = (uint16_t)latest_temperature_tenths_c;
+  temperature_tx[0] = (uint8_t)(temperature >> 8);
+  temperature_tx[1] = (uint8_t)temperature;
+}
+
 HAL_StatusTypeDef SPI_Slave_Init(SPI_HandleTypeDef *hspi,
                                  SPI_TypeDef *instance)
 {
@@ -21,7 +34,13 @@ HAL_StatusTypeDef SPI_Slave_Init(SPI_HandleTypeDef *hspi,
   hspi->Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
   hspi->Init.CRCPolynomial = 10;
 
-  return HAL_SPI_Init(hspi);
+  HAL_StatusTypeDef status = HAL_SPI_Init(hspi);
+  if (status == HAL_OK)
+  {
+    HAL_NVIC_SetPriority(SPI2_IRQn, 5U, 0U);
+    HAL_NVIC_EnableIRQ(SPI2_IRQn);
+  }
+  return status;
 }
 
 HAL_StatusTypeDef SPI_Slave_DeInit(SPI_HandleTypeDef *hspi)
@@ -73,4 +92,65 @@ HAL_StatusTypeDef SPI_Slave_TransmitReceive(SPI_HandleTypeDef *hspi,
   }
 
   return HAL_SPI_TransmitReceive(hspi, tx_data, rx_data, size, timeout);
+}
+
+HAL_StatusTypeDef SPI_Slave_StartTemperatureStream(SPI_HandleTypeDef *hspi)
+{
+  if ((hspi == NULL) || (hspi->Instance != SPI2) ||
+      (hspi->State != HAL_SPI_STATE_READY) ||
+      ((temperature_stream_spi != NULL) &&
+       (temperature_stream_spi != hspi)))
+  {
+    return HAL_ERROR;
+  }
+
+  temperature_stream_spi = hspi;
+  temperature_stream_status = HAL_OK;
+  SPI_Slave_LoadTemperature();
+  temperature_stream_status =
+      HAL_SPI_TransmitReceive_IT(hspi, temperature_tx, temperature_rx,
+                                 sizeof(temperature_tx));
+  return temperature_stream_status;
+}
+
+HAL_StatusTypeDef SPI_Slave_SetTemperature(int16_t temperature_tenths_c)
+{
+  latest_temperature_tenths_c = temperature_tenths_c;
+  return HAL_OK;
+}
+
+HAL_StatusTypeDef SPI_Slave_GetTemperatureStreamStatus(void)
+{
+  return temperature_stream_status;
+}
+
+void SPI_Slave_IRQHandler(void)
+{
+  if (temperature_stream_spi != NULL)
+  {
+    HAL_SPI_IRQHandler(temperature_stream_spi);
+  }
+}
+
+void SPI_Slave_OnTransmitReceiveComplete(SPI_HandleTypeDef *hspi)
+{
+  if ((temperature_stream_spi == NULL) ||
+      (temperature_stream_spi != hspi))
+  {
+    return;
+  }
+
+  SPI_Slave_LoadTemperature();
+  temperature_stream_status =
+      HAL_SPI_TransmitReceive_IT(hspi, temperature_tx, temperature_rx,
+                                 sizeof(temperature_tx));
+}
+
+void SPI_Slave_OnError(SPI_HandleTypeDef *hspi)
+{
+  if ((temperature_stream_spi != NULL) &&
+      (temperature_stream_spi == hspi))
+  {
+    temperature_stream_status = HAL_ERROR;
+  }
 }

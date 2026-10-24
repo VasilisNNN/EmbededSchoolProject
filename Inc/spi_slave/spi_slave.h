@@ -23,6 +23,12 @@ HAL_StatusTypeDef SPI_Slave_TransmitReceive(SPI_HandleTypeDef *hspi,
                                             uint8_t *rx_data,
                                             uint16_t size,
                                             uint32_t timeout);
+HAL_StatusTypeDef SPI_Slave_StartTemperatureStream(SPI_HandleTypeDef *hspi);
+HAL_StatusTypeDef SPI_Slave_SetTemperature(int16_t temperature_tenths_c);
+HAL_StatusTypeDef SPI_Slave_GetTemperatureStreamStatus(void);
+void SPI_Slave_IRQHandler(void);
+void SPI_Slave_OnTransmitReceiveComplete(SPI_HandleTypeDef *hspi);
+void SPI_Slave_OnError(SPI_HandleTypeDef *hspi);
 
 #ifdef __cplusplus
 }
