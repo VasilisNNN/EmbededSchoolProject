@@ -1,213 +1,96 @@
+#include <stdint.h>
 #include <stdio.h>
-
 #include "main.h"
 #include "i2c/i2c.h"
-#include "oled/oled.h"
-#include "ds1307/ds1307.h"
-#include "bme280/bme280.h"
-#include "main_app.h"
+#include "spi_slave/spi_slave.h"
+#include "spi_slave/bme280_spi_emulator.h"
 
+#define I2C_TIMEOUT_MS 100
 #define I2C_SPEED_HZ 100000U
-#define DISPLAY_UPDATE_INTERVAL_MS 1000U
+
+#define DS1307_ADDRESS 0x68
+#define DS1307_REG_START 0x00
+#define DS1307_REG_COUNT 8
 
 static I2C_HandleTypeDef hi2c1;
-static SPI_HandleTypeDef hspi1;
-
-#define ESP_SPI_CS_GPIO_Port GPIOA
-#define ESP_SPI_CS_Pin GPIO_PIN_4
-
-static HAL_StatusTypeDef SPI_Init(void)
-{
-    __HAL_RCC_GPIOA_CLK_ENABLE();
-    __HAL_RCC_SPI1_CLK_ENABLE();
-
-    HAL_GPIO_WritePin(ESP_SPI_CS_GPIO_Port, ESP_SPI_CS_Pin, GPIO_PIN_SET);
-
-    GPIO_InitTypeDef gpio = {};
-    gpio.Pin = ESP_SPI_CS_Pin;
-    gpio.Mode = GPIO_MODE_OUTPUT_PP;
-    gpio.Pull = GPIO_NOPULL;
-    gpio.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-    HAL_GPIO_Init(ESP_SPI_CS_GPIO_Port, &gpio);
-
-    gpio.Pin = GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7;
-    gpio.Mode = GPIO_MODE_AF_PP;
-    gpio.Pull = GPIO_NOPULL;
-    gpio.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-    gpio.Alternate = GPIO_AF5_SPI1;
-    HAL_GPIO_Init(GPIOA, &gpio);
-
-    hspi1.Instance = SPI1;
-    hspi1.Init.Mode = SPI_MODE_MASTER;
-    hspi1.Init.Direction = SPI_DIRECTION_2LINES;
-    hspi1.Init.DataSize = SPI_DATASIZE_8BIT;
-    hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
-    hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
-    hspi1.Init.NSS = SPI_NSS_SOFT;
-    hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_64;
-    hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
-    hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
-    hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
-    hspi1.Init.CRCPolynomial = 10;
-
-    return HAL_SPI_Init(&hspi1);
-}
-
-static HAL_StatusTypeDef ReadESP_SPI(uint8_t *received, uint16_t size)
-{
-    uint8_t request[4] = {0U, 0U, 0U, 0U};
-
-    if (received == NULL || size != sizeof(request))
-    {
-        return HAL_ERROR;
-    }
-
-    HAL_GPIO_WritePin(ESP_SPI_CS_GPIO_Port, ESP_SPI_CS_Pin, GPIO_PIN_RESET);
-    const HAL_StatusTypeDef status =
-        HAL_SPI_TransmitReceive(&hspi1, request, received, size, 100U);
-    HAL_GPIO_WritePin(ESP_SPI_CS_GPIO_Port, ESP_SPI_CS_Pin, GPIO_PIN_SET);
-
-    return status;
-}
-
-static int32_t DecodeTemperatureMilliC(const uint8_t data[4])
-{
-    const uint32_t raw = ((uint32_t)data[0] << 24) |
-                         ((uint32_t)data[1] << 16) |
-                         ((uint32_t)data[2] << 8) |
-                         (uint32_t)data[3];
-
-    if ((raw & 0x80000000U) != 0U)
-    {
-        return (int32_t)((int64_t)raw - 0x100000000LL);
-    }
-
-    return (int32_t)raw;
-}
-
-static STRING FormatTemperatureMilliC(int32_t temperature_milli_c)
-{
-    const int64_t absolute_value = temperature_milli_c < 0
-                                       ? -(int64_t)temperature_milli_c
-                                       : temperature_milli_c;
-    const int64_t tenths_c = (absolute_value + 50) / 100;
-    char text[24];
-    snprintf(text, sizeof(text), "ESP: %s%ld.%ld C",
-             temperature_milli_c < 0 ? "-" : "",
-             (long)(tenths_c / 10),
-             (long)(tenths_c % 10));
-    return STRING(text);
-}
-
-static void PrintDisplayLine(OLED_HandleTypeDef *oled, uint8_t row, const char *text)
-{
-    OLED_Print(oled, row, 1, false, text);
-}
-
-STRING FomatString(int variable, STRING end)
-{
-
-    STRING result = " ";
-
-    if (variable < 0)
-    {
-        result += "-";
-    }
-
-    result += std::to_string(variable / 10);
-    result += ".";
-    result += std::to_string(variable % 10);
-    result += end;
-    return result;
-}
+static SPI_HandleTypeDef hspi2;
+static BME280_SPI_Emulator_HandleTypeDef bme280_spi;
 
 extern "C" void main_cpp()
 {
-
-    if (I2C_Init(&hi2c1, I2C1, I2C_SPEED_HZ) != HAL_OK)
+    HAL_StatusTypeDef status = SPI_Slave_Init(&hspi2, SPI2);
+    if (status == HAL_OK)
     {
-        printf("I2C error\n");
+        status = BME280_SPI_Emulator_Init(&bme280_spi, &hspi2);
+    }
+    if (status == HAL_OK)
+    {
+        status = BME280_SPI_Emulator_Start(&bme280_spi);
+    }
+
+    if (status == HAL_OK)
+    {
+        printf("[SPI] BME280 emulator started on SPI2 (chip ID=0x%02X)\r\n",
+               BME280_SPI_EMULATOR_CHIP_ID);
+    }
+    else
+    {
+        printf("[SPI] BME280 emulator startup failed (status=%d)\r\n",
+               (int)status);
+    }
+
+    status = I2C_Init(&hi2c1, I2C1, I2C_SPEED_HZ);
+    if (status != HAL_OK)
+    {
+        printf("[I2C] I2C1 initialization failed (status=%d)\r\n", (int)status);
         return;
     }
 
-    OLED_SettingsTypeDef settings = OLED_SETTINGS_128X64_DEFAULT();
-    OLED_HandleTypeDef *oled = NULL;
+    HAL_Delay(500);
 
-    if (OLED_Init(&hi2c1, &settings, &oled) != HAL_OK)
+    uint8_t found[16];
+    uint8_t found_count = 0;
+
+    status = I2C_Scan(&hi2c1, found, sizeof(found), &found_count, 10);
+    if (status != HAL_OK)
     {
-        printf("OLED error\n");
+        printf("[I2C] Scan failed (status=%d)\r\n", (int)status);
         return;
     }
 
-    const bool spi_ready = SPI_Init() == HAL_OK;
-    if (!spi_ready)
+    printf("[I2C] Scan: %u device(s) found\r\n", (unsigned)found_count);
+    for (uint8_t i = 0; (i < found_count) && (i < sizeof(found)); i++)
     {
-        printf("SPI initialization failed: error=0x%08lX\n",
-               (unsigned long)hspi1.ErrorCode);
+        printf("[I2C] Found device at 0x%02X\r\n", found[i]);
     }
 
-    DS1307_HandleTypeDef *rtc = NULL;
-    DS1307_Init(&hi2c1, &rtc);
-
-    BME280_HandleTypeDef *bme280 = NULL;
-    BME280_Init(&hi2c1, &bme280);
-
-    DS1307_DateTimeTypeDef initialTime = {2026, 10, 20, 3, 20, 56, 0};
-    DS1307_SetDateTime(rtc, &initialTime);
+    status = I2C_Probe(&hi2c1, DS1307_ADDRESS, I2C_TIMEOUT_MS);
+    if (status != HAL_OK)
+    {
+        printf("[I2C] DS1307 not found (status=%d)\r\n", (int)status);
+        return;
+    }
 
     while (1)
     {
-        DS1307_DateTimeTypeDef date;
-        DS1307_GetDateTime(rtc, &date);
+        uint8_t regs[DS1307_REG_COUNT];
 
-        BME280_MeasurementTypeDef data;
-        BME280_Read(bme280, &data);
-
-        STRING day = std::to_string(date.day);
-        STRING month = std::to_string(date.month);
-        STRING year = std::to_string(date.year);
-
-        STRING hour = std::to_string(date.hour);
-        STRING minute = std::to_string(date.minute);
-        STRING second = std::to_string(date.second);
-
-        if (date.day < 10)
-            day = "0" + day;
-        if (date.month < 10)
-            month = "0" + month;
-        if (date.hour < 10)
-            hour = "0" + hour;
-        if (date.minute < 10)
-            minute = "0" + minute;
-        if (date.second < 10)
-            second = "0" + second;
-
-        STRING dateText = day + "/" + month + "/" + year;
-        STRING timeText = hour + ":" + minute + ":" + second;
-
-        OLED_Clear(oled);
-
-        PrintDisplayLine(oled, 0, "Clock / Weather");
-        PrintDisplayLine(oled, 1, dateText.c_str());
-        OLED_Print(oled, 2, 2, false, timeText.c_str());
-
-        uint8_t spi_data[4] = {};
-        if (!spi_ready)
+        status = I2C_ReadRegister(&hi2c1, DS1307_ADDRESS, DS1307_REG_START,
+                                  regs, sizeof(regs), I2C_TIMEOUT_MS);
+        if (status == HAL_OK)
         {
-            PrintDisplayLine(oled, 5, "ESP: SPI error");
+            printf("[I2C] DS1307:");
+            for (uint8_t i = 0; i < sizeof(regs); i++)
+            {
+                printf(" %02X", regs[i]);
+            }
+            printf("\r\n");
         }
         else
         {
-            ReadESP_SPI(spi_data, sizeof(spi_data));
-
-            const int32_t temperature_milli_c = DecodeTemperatureMilliC(spi_data);
-
-            const STRING temperature_text = FormatTemperatureMilliC(temperature_milli_c);
-            PrintDisplayLine(oled, 5, temperature_text.c_str());
+            printf("[I2C] Register read failed (status=%d)\r\n", (int)status);
         }
 
-        PrintDisplayLine(oled, 6, FomatString(data.humidity_tenths_percent, " %").c_str());
-        PrintDisplayLine(oled, 7, FomatString(data.pressure_tenths_hpa, " hPa").c_str());
-        HAL_Delay(DISPLAY_UPDATE_INTERVAL_MS);
+        HAL_Delay(1000);
     }
 }
