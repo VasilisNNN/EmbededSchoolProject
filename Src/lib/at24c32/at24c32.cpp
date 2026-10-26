@@ -7,6 +7,36 @@ namespace at24c32
 namespace
 {
 constexpr uint16_t last_valid_address = device_size - page_size;
+constexpr uint32_t ready_poll_timeout_ms = 1U;
+constexpr uint32_t ready_poll_interval_ms = 1U;
+
+HAL_StatusTypeDef wait_until_ready(I2C_HandleTypeDef *i2c,
+                                   uint16_t device_address,
+                                   uint32_t timeout_ms)
+{
+    const uint32_t start_tick = HAL_GetTick();
+    HAL_StatusTypeDef status;
+
+    do
+    {
+        status = HAL_I2C_IsDeviceReady(i2c,
+                                       device_address,
+                                       1U,
+                                       ready_poll_timeout_ms);
+        if (status == HAL_OK)
+        {
+            return HAL_OK;
+        }
+        if ((status != HAL_ERROR) && (status != HAL_TIMEOUT))
+        {
+            return status;
+        }
+
+        HAL_Delay(ready_poll_interval_ms);
+    } while ((HAL_GetTick() - start_tick) < timeout_ms);
+
+    return HAL_TIMEOUT;
+}
 }
 
 At24C32::At24C32(I2C_HandleTypeDef *i2c, uint16_t i2c_address)
@@ -75,9 +105,8 @@ HAL_StatusTypeDef At24C32::write_page(uint16_t address,
         return status;
     }
 
-    return HAL_I2C_IsDeviceReady(i2c_,
-                                 static_cast<uint16_t>(i2c_address_ << 1U),
-                                 10U,
-                                 timeout_ms);
+    return wait_until_ready(i2c_,
+                            static_cast<uint16_t>(i2c_address_ << 1U),
+                            timeout_ms);
 }
 }
