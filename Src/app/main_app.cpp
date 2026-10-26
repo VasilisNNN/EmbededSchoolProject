@@ -134,6 +134,7 @@ extern "C" void main_cpp(void)
     
     while (1)
     {
+        printf("PRINT");
         if ((HAL_GetTick() - last_demo_log_tick) >= demo_log_interval_ms)
         {
             last_demo_log_tick = HAL_GetTick();

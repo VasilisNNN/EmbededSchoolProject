@@ -236,7 +236,7 @@ void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
-  __disable_irq();
+  /* Keep USB interrupts active so the host can still enumerate the CDC port. */
   while (1)
   {
   }
