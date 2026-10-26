@@ -1,130 +1,174 @@
-#include <stdint.h>
-#include <stdio.h>
-#include "stm32f4xx.h"
-
-extern "C"
-{
-    volatile uint32_t app_millisecond_ticks = 0U;
-}
+#include <cstdio>
+#include "main.h"
+#include "i2c/i2c.h"
+#include "lib/at24c32/at24c32.h"
+#include "lib/logger/logger.h"
 
 namespace
 {
-    constexpr uint32_t led_pin = 1U << 13U;
-    constexpr uint32_t button_pin = 1U << 0U;
-    constexpr uint32_t debounce_ms = 25U;
-    constexpr uint32_t minimum_toggle_interval_ms = 200U;
-    constexpr uint32_t maximum_toggle_interval_ms = 2000U;
+constexpr uint32_t i2c_clock_hz = 100000U;
+constexpr uint32_t eeprom_timeout_ms = 100U;
+constexpr uint32_t demo_log_interval_ms = 10000U;
 
-    void configure_gpio()
-    {
-        RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN | RCC_AHB1ENR_GPIOCEN;
-        (void)RCC->AHB1ENR;
+void print_log(uint16_t number, const char *text, void *context)
+{
+    (void)number;
+    (void)context;
+    printf("%s\r\n", text);
+}
 
-        GPIOC->MODER = (GPIOC->MODER & ~(3U << (13U * 2U))) |
-                       (1U << (13U * 2U));
-        GPIOC->OTYPER &= ~led_pin;
-        GPIOC->OSPEEDR &= ~(3U << (13U * 2U));
-        GPIOC->PUPDR &= ~(3U << (13U * 2U));
-        GPIOC->BSRR = led_pin;
-
-        GPIOA->MODER &= ~(3U << (0U * 2U));
-        GPIOA->PUPDR = (GPIOA->PUPDR & ~(3U << (0U * 2U))) |
-                       (1U << (0U * 2U));
-    }
-
-    uint32_t next_random_value(uint32_t value)
-    {
-        value ^= value << 13U;
-        value ^= value >> 17U;
-        value ^= value << 5U;
-        return value;
-    }
+void print_error(const char *operation, HAL_StatusTypeDef status)
+{
+    printf("[logger] %s failed (HAL status %d)\r\n",
+           operation,
+           static_cast<int>(status));
+}
 }
 
 extern "C" void main_cpp(void)
 {
-    configure_gpio();
+    static I2C_HandleTypeDef i2c1;
+    HAL_StatusTypeDef status = I2C_Init(&i2c1, I2C1, i2c_clock_hz);
+    if (status != HAL_OK)
+    {
+        print_error("I2C1 initialization", status);
+        Error_Handler();
+    }
 
-    uint32_t last_tick = app_millisecond_ticks;
-    uint32_t random_state = 0xA341316CU;
-    uint32_t toggle_interval_ms = 500U;
-    uint32_t elapsed_ms = 0U;
-    bool button_candidate_pressed = (GPIOA->IDR & button_pin) == 0U;
-    bool button_stable_pressed = button_candidate_pressed;
-    uint32_t button_candidate_since_ms = last_tick;
-    bool led_on = false;
+    at24c32::At24C32 eeprom(
+        &i2c1,
+        at24c32::default_i2c_address);
+    logger::Logger log(eeprom);
 
+    status = log.init(eeprom_timeout_ms);
+    if (status != HAL_OK)
+    {
+        print_error("AT24C32 probe/recovery", status);
+        Error_Handler();
+    }
+
+    uint16_t existing_count = 0U;
+    status = log.count(&existing_count);
+    if (status != HAL_OK)
+    {
+        print_error("log count", status);
+        Error_Handler();
+    }
+    printf("[logger] AT24C32 ready at 0x%02X; %u log(s) recovered\r\n",
+           static_cast<unsigned>(at24c32::default_i2c_address),
+           static_cast<unsigned>(existing_count));
+
+    uint16_t written_number = 0U;
+    status = log.append("Info: logger started",
+                        &written_number,
+                        eeprom_timeout_ms);
+    if (status != HAL_OK)
+    {
+        print_error("append startup record", status);
+        Error_Handler();
+    }
+
+    status = log.append("Info: demo temperature 25C",
+                        nullptr,
+                        eeprom_timeout_ms);
+    if (status != HAL_OK)
+    {
+        print_error("append sample record", status);
+        Error_Handler();
+    }
+
+    status = log.append("Error: demo test event",
+                        nullptr,
+                        eeprom_timeout_ms);
+    if (status != HAL_OK)
+    {
+        print_error("append test error record", status);
+        Error_Handler();
+    }
+
+    uint16_t log_count = 0U;
+    uint16_t first_number = 0U;
+    uint16_t last_number = 0U;
+    status = log.count(&log_count);
+    if ((status != HAL_OK) ||
+        (log.oldest_number(&first_number) != HAL_OK) ||
+        (log.newest_number(&last_number) != HAL_OK))
+    {
+        print_error("log range query", HAL_ERROR);
+        Error_Handler();
+    }
+
+
+    printf("[logger] count=%u, first=#%u, last=#%u\r\n",
+           log_count,
+           first_number,
+           last_number);
+
+    char selected_log[logger::log_text_capacity];
+    status = log.read(written_number,
+                      selected_log,
+                      sizeof(selected_log),
+                      eeprom_timeout_ms);
+    if (status != HAL_OK)
+    {
+        print_error("read log by number", status);
+        Error_Handler();
+    }
+    printf("[logger] read #%u: %s\r\n",
+           static_cast<unsigned>(written_number),
+           selected_log);
+
+    printf("[logger] logs in recovered range:\r\n");
+    status = log.read_range(first_number,
+                            last_number,
+                            print_log,
+                            nullptr,
+                            eeprom_timeout_ms);
+    if (status != HAL_OK)
+    {
+        print_error("read log range", status);
+        Error_Handler();
+    }
+
+    uint32_t last_demo_log_tick = HAL_GetTick();
+    
     while (1)
     {
-        const uint32_t current_tick = app_millisecond_ticks;
-        const uint32_t elapsed_ticks = current_tick - last_tick;
-
-        if (elapsed_ticks == 0U)
+        if ((HAL_GetTick() - last_demo_log_tick) >= demo_log_interval_ms)
         {
-            __WFI();
-            // continue;
-        }
-
-        last_tick = current_tick;
-
-        // Read button (active LOW)
-        const bool button_pressed = (GPIOA->IDR & button_pin) == 0U;
-
-        // Button debounce
-        if (button_pressed != button_candidate_pressed)
-        {
-            button_candidate_pressed = button_pressed;
-            button_candidate_since_ms = current_tick;
-        }
-
-        // Button pressed
-        if ((button_stable_pressed != button_candidate_pressed))
-        {
-            button_stable_pressed = button_candidate_pressed;
-
-            if (button_stable_pressed)
+            last_demo_log_tick = HAL_GetTick();
+            char message[logger::log_text_capacity];
+            const int length = std::snprintf(
+                message,
+                sizeof(message),
+                "Info: uptime %lu s",
+                 last_demo_log_tick / 1000U);
+            if ((length < 0) ||
+                (static_cast<size_t>(length) >= sizeof(message)))
             {
-                random_state =
-                    next_random_value(random_state ^ current_tick) | 1U;
-
-                const uint32_t interval_range =
-                    maximum_toggle_interval_ms -
-                    minimum_toggle_interval_ms + 1U;
-
-                toggle_interval_ms =
-                    minimum_toggle_interval_ms +
-                    (random_state % interval_range);
-
-                elapsed_ms = 0U;
-
-                printf("Button pressed; LED toggle interval: %lu ms\r\n",
-                       static_cast<unsigned long>(toggle_interval_ms));
+                print_error("format uptime record", HAL_ERROR);
+                Error_Handler();
             }
-        }
 
-        // LED timing
-        elapsed_ms += 1;
-
-        if (elapsed_ms >= toggle_interval_ms)
-        {
-
-            const uint32_t toggle_count =
-                elapsed_ms / toggle_interval_ms;
-
-            elapsed_ms %= toggle_interval_ms;
-
-            if ((toggle_count & 1U) != 0U)
+            status = log.append(message, &written_number, eeprom_timeout_ms);
+            if (status != HAL_OK)
             {
-                led_on = !led_on;
-                if (led_on)
-                {
-                    GPIOC->BSRR = (1UL << (13U + 16U)); // LED ON
-                }
-                else
-                {
-                    GPIOC->BSRR = (1UL << 13U); // LED OFF
-                }
+                print_error("append uptime record", status);
+                Error_Handler();
             }
+
+            status = log.read(written_number,
+                              selected_log,
+                              sizeof(selected_log),
+                              eeprom_timeout_ms);
+            if (status != HAL_OK)
+            {
+                print_error("verify uptime record", status);
+                Error_Handler();
+            }
+            printf("[logger] %s\r\n", selected_log);
         }
+        HAL_Delay(10U);
     }
+    
 }
