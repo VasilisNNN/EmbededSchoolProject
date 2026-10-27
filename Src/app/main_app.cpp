@@ -9,7 +9,7 @@
 
 extern "C" void main_cpp(void)
 {
-
+    static I2C_HandleTypeDef hi2c1;
     OLED_SettingsTypeDef settings = OLED_SETTINGS_128X64_DEFAULT();
     OLED_HandleTypeDef *oled = NULL;
 
