@@ -21,7 +21,7 @@ public:
     void Init();
     void Write(const char *message,
                             uint16_t *written_number = nullptr);
-    HAL_StatusTypeDef count(uint16_t *log_count) const;
+
     HAL_StatusTypeDef oldest_number(uint16_t *number) const;
     HAL_StatusTypeDef newest_number(uint16_t *number) const;
     HAL_StatusTypeDef Read(uint16_t number,
@@ -34,7 +34,7 @@ private:
     void createRecord(uint8_t *record, const char *message);
     void addCRC(uint8_t *record);
     void updateLog();
-    void nextLog();
+
 
     bool Find_Slot(uint16_t number, uint16_t *slot) const;
 

@@ -19,7 +19,7 @@ uint16_t Cyclic_Redundancy_Check(const uint8_t *data, size_t size)
     for (size_t index = 0; index < size; ++index)
     {
         crc ^= static_cast<uint16_t>(data[index]) << 8U;
-        
+
         for (uint8_t bit = 0; bit < 8U; ++bit)
         {
             if ((crc & 0x8000U) != 0U)
@@ -35,13 +35,10 @@ uint16_t Cyclic_Redundancy_Check(const uint8_t *data, size_t size)
     return crc;
 }
 
-
 Logger::Logger(AT24C32_HandleTypeDef &eeprom)
     : eeprom_(eeprom)
 {
-    
 }
-
 
 void Logger::Init()
 {
@@ -62,23 +59,17 @@ void Logger::Init()
 
 void Logger::createRecord(uint8_t *record, const char *message)
 {
-    for (int i = 0; i < AT24C32_PAGE_SIZE_BYTES; i++)
-    {
-        record[i] = ' ';
-    }
+    memset(record, ' ', AT24C32_PAGE_SIZE_BYTES);
 
     record[0] = '#';
     record[1] = '0' + next_number_ / 100;
-    record[2] = '0' + (next_number_ / 10) % 10;
+    record[2] = '0' + next_number_ / 10 % 10;
     record[3] = '0' + next_number_ % 10;
     record[4] = '|';
 
-    int i = 0;
-
-    while (message[i] != '\0' && i < record_text_size)
+    for (int i = 0; i < record_text_size && message[i] != '\0'; i++)
     {
         record[record_text_offset + i] = message[i];
-        i++;
     }
 }
 
@@ -118,28 +109,11 @@ void Logger::updateLog()
     }
 }
 
-void Logger::nextLog()
-{
-    next_slot_++;
-
-    if (next_slot_ >= log_capacity)
-    {
-        next_slot_ = 0;
-    }
-
-    next_number_++;
-
-    if (next_number_ >= log_number_count)
-    {
-        next_number_ = 0;
-    }
-}
-
 void Logger::Write(const char *message, uint16_t *written_number)
 {
     if (initialized_ == false || message == nullptr)
     {
-        return ;
+        return;
     }
 
     uint8_t record[AT24C32_PAGE_SIZE_BYTES];
@@ -155,8 +129,6 @@ void Logger::Write(const char *message, uint16_t *written_number)
         record,
         AT24C32_PAGE_SIZE_BYTES);
 
-  
-
     updateLog();
 
     if (written_number != nullptr)
@@ -164,19 +136,22 @@ void Logger::Write(const char *message, uint16_t *written_number)
         *written_number = next_number_;
     }
 
-    nextLog();
+    next_slot_++;
 
-}
-
-HAL_StatusTypeDef Logger::count(uint16_t *log_count) const
-{
-    if (!initialized_ || (log_count == nullptr))
+    if (next_slot_ >= log_capacity)
     {
-        return HAL_ERROR;
+        next_slot_ = 0;
     }
-    *log_count = valid_count_;
-    return HAL_OK;
+
+    next_number_++;
+
+    if (next_number_ >= log_number_count)
+    {
+        next_number_ = 0;
+    }
 }
+
+
 
 bool Logger::Find_Slot(uint16_t number, uint16_t *slot) const
 {
@@ -195,8 +170,6 @@ bool Logger::Find_Slot(uint16_t number, uint16_t *slot) const
     }
     return false;
 }
-
-
 
 void format_log_text(const uint8_t *record, uint16_t number, char *text)
 {
