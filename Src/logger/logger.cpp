@@ -283,23 +283,27 @@ void Logger::updateLog()
 }
 
 bool Logger::Write(const char *message,
-                                uint16_t *written_number)
+                   uint16_t *written_number)
 {
     if (!initialized_ || (message == nullptr))
     {
-        return HAL_ERROR;
+        return false;
     }
 
     uint8_t record[AT24C32_PAGE_SIZE_BYTES];
     createRecord(record, message);
     addCRC(record);
 
-    AT24C32_Write(
+    const HAL_StatusTypeDef status = AT24C32_Write(
         &eeprom_,
         static_cast<uint32_t>(next_slot_) * AT24C32_PAGE_SIZE_BYTES,
         record,
         sizeof(record));
-    
+    if (status != HAL_OK)
+    {
+        return false;
+    }
+
     const uint16_t written = next_number_;
     updateLog();
     if (written_number != nullptr)
@@ -310,7 +314,7 @@ bool Logger::Write(const char *message,
     next_slot_ = static_cast<uint16_t>((next_slot_ + 1U) % log_capacity);
     next_number_ = static_cast<uint16_t>(
         (next_number_ + 1U) % log_number_count);
-    return HAL_OK;
+    return true;
 }
 
 uint16_t Logger::count() const
@@ -322,20 +326,20 @@ bool Logger::oldest_number(uint16_t *number) const
 {
     if (!initialized_ || (number == nullptr) || (valid_count_ == 0U))
     {
-        return HAL_ERROR;
+        return false;
     }
     *number = numbers_[oldest_slot_];
-    return HAL_OK;
+    return true;
 }
 
 bool Logger::newest_number(uint16_t *number) const
 {
     if (!initialized_ || (number == nullptr) || (valid_count_ == 0U))
     {
-        return HAL_ERROR;
+        return false;
     }
     *number = numbers_[newest_slot_];
-    return HAL_OK;
+    return true;
 }
 
 bool Logger::findSlot(uint16_t number, uint16_t *slot) const
@@ -361,30 +365,34 @@ bool Logger::Read(uint16_t number, char *text, size_t text_capacity)
     if (!initialized_ || (text == nullptr) ||
         (text_capacity < log_text_capacity))
     {
-        return;
+        return false;
     }
 
     uint16_t slot = 0U;
     if (!findSlot(number, &slot))
     {
-        return;
+        return false;
     }
 
     uint8_t record[AT24C32_PAGE_SIZE_BYTES];
-    AT24C32_Read(
+    const HAL_StatusTypeDef status = AT24C32_Read(
         &eeprom_,
         static_cast<uint32_t>(slot) * AT24C32_PAGE_SIZE_BYTES,
         record,
         sizeof(record));
- 
+    if (status != HAL_OK)
+    {
+        return false;
+    }
+
     uint16_t decoded_number = 0U;
     if (!decodeRecord(record, &decoded_number) || (decoded_number != number))
     {
-        return;
+        return false;
     }
 
     formatLogText(record, number, text);
-  
+    return true;
 }
 
 bool Logger::readRange(uint16_t first_number,
@@ -396,7 +404,7 @@ bool Logger::readRange(uint16_t first_number,
         (first_number >= log_number_count) ||
         (last_number >= log_number_count))
     {
-        return;
+        return false;
     }
 
     const uint16_t range_size = static_cast<uint16_t>(
@@ -405,7 +413,7 @@ bool Logger::readRange(uint16_t first_number,
         1U);
     if (range_size > log_capacity)
     {
-        return;
+        return false;
     }
 
     char text[log_text_capacity];
@@ -413,21 +421,22 @@ bool Logger::readRange(uint16_t first_number,
     {
         const uint16_t number = static_cast<uint16_t>(
             (first_number + offset) % log_number_count);
-        Read(number, text, sizeof(text));
-        
+        if (!Read(number, text, sizeof(text)))
+        {
+            return false;
+        }
         visitor(number, text, context);
     }
-  
+    return true;
 }
 
 bool Logger::readAll(LogVisitor visitor, void *context)
 {
     if (!initialized_ || (visitor == nullptr))
     {
-        return;
+        return false;
     }
 
- 
     char text[log_text_capacity];
     for (uint16_t offset = 0U; offset < log_capacity; ++offset)
     {
@@ -439,9 +448,11 @@ bool Logger::readAll(LogVisitor visitor, void *context)
         }
 
         const uint16_t number = numbers_[slot];
-        Read(number, text, sizeof(text));
-        
+        if (!Read(number, text, sizeof(text)))
+        {
+            return false;
+        }
         visitor(number, text, context);
     }
-
+    return true;
 }

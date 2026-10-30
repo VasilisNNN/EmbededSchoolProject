@@ -51,26 +51,32 @@ extern "C" void main_cpp(void)
     OLED_SettingsTypeDef settings = OLED_SETTINGS_128X64_DEFAULT();
     OLED_HandleTypeDef *oled = NULL;
 
-    if (!OLED_Init(&i2c1, &settings, &oled))
+    status = OLED_Init(&i2c1, &settings, &oled);
+    if (status != HAL_OK)
     {
-        printf("OLED init failed\r\n");
+        printf("OLED init failed: %d\r\n", static_cast<int>(status));
         return;
     }
 
   
-    if (!AT24C32_Init(&eeprom, &i2c1, 0U))
+    status = AT24C32_Init(&eeprom, &i2c1, 0U);
+    if (status != HAL_OK)
     {
-        printf("EEPROM init failed\r\n");
+        printf("EEPROM init failed: %d\r\n", static_cast<int>(status));
         return;
     }
 
-    logObj.Init();
+    if (!logObj.Init())
+    {
+        printf("Logger init failed\r\n");
+        return;
+    }
     
     uint16_t oldest_number = 0U;
     uint16_t newest_number = 0U;
     printf("Stored logs: %u\r\n", static_cast<unsigned>(logObj.count()));
-    if (logObj.oldest_number(&oldest_number) == HAL_OK &&
-        logObj.newest_number(&newest_number) == HAL_OK)
+    if (logObj.oldest_number(&oldest_number) &&
+        logObj.newest_number(&newest_number))
     {
         printf("Stored range: #%03u..#%03u\r\n",
                static_cast<unsigned>(oldest_number),
@@ -78,25 +84,24 @@ extern "C" void main_cpp(void)
        
         if (!logObj.readRange(oldest_number, newest_number, PrintLog, nullptr))
         {
-            printf("Logger range read failed: %d\r\n",
-                   static_cast<int>(status));
+            printf("Logger range read failed\r\n");
         }
 
     
         if (!logObj.readAll(PrintLog, nullptr))
         {
-            printf("Logger read-all failed: %d\r\n");
+            printf("Logger read-all failed\r\n");
         }
 
         char latest_log[log_text_capacity];
      
-        if (!logObj.Read(newest_number, latest_log, sizeof(latest_log)))
+        if (logObj.Read(newest_number, latest_log, sizeof(latest_log)))
         {
             printf("Latest log: %s\r\n", latest_log);
         }
         else
         {
-            printf("Logger read failed: %d\r\n", static_cast<int>(status));
+            printf("Logger read failed\r\n");
         }
     }
 
@@ -139,12 +144,12 @@ extern "C" void main_cpp(void)
         
         if (!logObj.Write(message, &written_number))
         {
-            printf("Logger write failed: %d\r\n", static_cast<int>(status));
+            printf("Logger write failed\r\n");
             continue;
         }
 
        
-        if (!logObj.Read(written_number,read_message,sizeof(read_message)))
+        if (!logObj.Read(written_number, read_message, sizeof(read_message)))
         {
             OLED_Print(oled, 0U, 1U, false, "Logger Read failed\r\n");
             printf("Logger Read failed\r\n");
