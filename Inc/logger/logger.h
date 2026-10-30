@@ -15,28 +15,28 @@ using LogVisitor = void (*)(uint16_t number, const char *text, void *context);
 class Logger
 {
 public:
-    
     Logger(AT24C32_HandleTypeDef &eeprom);
 
-    void Init();
-    void Write(const char *message,
-                            uint16_t *written_number = nullptr);
+    bool Init();
+    bool Write(const char *message, uint16_t *written_number );
 
-    HAL_StatusTypeDef oldest_number(uint16_t *number) const;
-    HAL_StatusTypeDef newest_number(uint16_t *number) const;
-    HAL_StatusTypeDef Read(uint16_t number,
+    uint16_t count() const;
+    bool oldest_number(uint16_t *number) const;
+    bool newest_number(uint16_t *number) const;
+    bool Read(uint16_t number,
                            char *text,
-                           size_t text_capacity) const;
-
-    
+                           size_t text_capacity);
+    bool readRange(uint16_t first_number,
+                                 uint16_t last_number,
+                                 LogVisitor visitor,
+                                 void *context);
+    bool readAll(LogVisitor visitor, void *context);
 
 private:
     void createRecord(uint8_t *record, const char *message);
     void addCRC(uint8_t *record);
     void updateLog();
-
-
-    bool Find_Slot(uint16_t number, uint16_t *slot) const;
+    bool findSlot(uint16_t number, uint16_t *slot) const;
 
     AT24C32_HandleTypeDef &eeprom_;
     uint16_t numbers_[log_capacity];
